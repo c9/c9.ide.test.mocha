@@ -1,6 +1,6 @@
 define(function(require, exports, module) {
     main.consumes = [
-        "TestRunner", "settings", "prefs", "proc", "util", "fs", "watcher"
+        "TestRunner", "settings", "preferences", "proc", "util", "fs", "watcher"
     ];
     main.provides = ["test.mocha"];
     return main;
@@ -8,7 +8,7 @@ define(function(require, exports, module) {
     function main(options, imports, register) {
         var TestRunner = imports.TestRunner;
         // var settings = imports.settings;
-        // var prefs = imports.prefs;
+        // var prefs = imports.preferences;
         var proc = imports.proc;
         var util = imports.util;
         var fs = imports.fs;
@@ -302,12 +302,7 @@ define(function(require, exports, module) {
                     }
                 });
                 pty.on("exit", function(c){
-                    if (passed == 1)
-                        node.passed = "pass";
-                    else if (passed == 0)
-                        node.passed = "fail";
-                    else if (passed === -1)
-                        node.passed = "skip";
+                    node.passed = passed;
                     
                     // totalTests == testCount
                     
