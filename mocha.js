@@ -234,7 +234,7 @@ define(function(require, exports, module) {
                 for (var j; i < items.length; i++) {
                     j = items[i];
                     
-                    if (j.type == "test")
+                    if (j.type == "test" || j.type == "prepare")
                         return j;
                     
                     if (j.items) {
@@ -279,20 +279,20 @@ define(function(require, exports, module) {
         function run(node, progress, callback){
             var fileNode, path, passed = true, args = ["--reporter", "tap"];
             
+            var allTests = getAllTestNodes(node);
+            var allTestIndex = 0;
+            
             if (node.type == "file") {
                 fileNode = node;
-                progress.start(findNextTest(fileNode));
+                progress.start(allTests[allTestIndex]);
             }
             else {
                 fileNode = findFileNode(node);
-                progress.start(node.type == "test" ? node : findNextTest(node));
+                progress.start(node.type == "test" ? node : allTests[allTestIndex]);
                 
                 args.push("--grep", "^" + util.escapeRegExp(getFullTestName(node)) 
                     + (node.type == "test" ? "$" : ""));
             }
-            
-            var allTests = getAllTestNodes(node);
-            var allTestIndex = 0;
             
             // TODO: --debug --debug-brk
             args.push(fileNode.label);
@@ -324,6 +324,11 @@ define(function(require, exports, module) {
                         var id = RegExp.$2;
                         var name = RegExp.$3;
                         
+                        if (name.match(/"(before all|before each|after all|after each)" hook/, "$1")) {
+                            name = name.replace(/"(before all|before each|after all|after each)" hook/, "$1");
+                            if (!pass) bailed = true;
+                        }
+                        
                         // Set file passed state
                         if (!pass) passed = false;
                         
@@ -348,6 +353,8 @@ define(function(require, exports, module) {
                         // Update progress
                         progress.end(resultNode);
                         
+                        if (bailed) return;
+                        
                         var nextTest = allTests[++allTestIndex]; //findNextTest(resultNode);
                         if (nextTest) progress.start(nextTest);
                     }
@@ -359,6 +366,11 @@ define(function(require, exports, module) {
                 });
                 pty.on("exit", function(c){
                     // totalTests == testCount
+                    
+                    allTests.forEach(function(n){ 
+                        if (n.status != "loaded")
+                            progress.end(n);
+                    });
                     
                     callback(null, node);
                 });

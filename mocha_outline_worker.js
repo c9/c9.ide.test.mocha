@@ -30,6 +30,30 @@ function getTestCases(ast) {
     // Traverse the AST with some pattern matching
     // for debugging, do ast.toString() or node.toString()
     ast.traverseTopDown( 
+        'Call(Var("before"), _)', function(b, node) {
+            items.push({
+                label: "before all",
+                type: "prepare"
+            });
+        },
+        'Call(Var("beforeEach"), _)', function(b, node) {
+            items.push({
+                label: "before each",
+                type: "prepare"
+            });
+        },
+        'Call(Var("after"), _)', function(b, node) {
+            items.push({
+                label: "before all",
+                type: "prepare"
+            });
+        },
+        'Call(Var("afterEach"), _)', function(b, node) {
+            items.push({
+                label: "before each",
+                type: "prepare"
+            });
+        },
         'Call(Var("it"), [String(description), _])', function(b, node) {
             items.push({
                 label: b.description.value,
