@@ -1,6 +1,7 @@
 define(function(require, exports, module) {
     main.consumes = [
-        "TestRunner", "settings", "preferences", "proc", "util", "fs", "watcher"
+        "TestRunner", "settings", "preferences", "proc", "util", "fs", 
+        "watcher", "language"
     ];
     main.provides = ["test.mocha"];
     return main;
@@ -12,6 +13,7 @@ define(function(require, exports, module) {
         var proc = imports.proc;
         var util = imports.util;
         var fs = imports.fs;
+        var language = imports.language;
         var watcher = imports.watcher;
         
         var dirname = require("path").dirname;
@@ -47,6 +49,8 @@ define(function(require, exports, module) {
         function fetch(callback) {
             var cmd, args;
             
+            return callback(null, "plugins/c9.analytics/analytics_test.js\nplugins/c9.api/base_test.js\nplugins/c9.api/collab_test.js\nplugins/c9.api/docker_test.js\nplugins/c9.api/package_test.js\nplugins/c9.api/quota_test.js\nplugins/c9.api/settings_test.js\nplugins/c9.api/sitemap-writer_test.js\nplugins/c9.api/stats_test.js\nplugins/c9.api/vfs_test.js");
+            
             if (SCRIPT) {
                 args = SCRIPT.split(" ");
                 cmd = args.shift();
@@ -62,22 +66,32 @@ define(function(require, exports, module) {
                     args.push("--include", INCLUDE_PATTERN);
             }
             
-            proc.execFile(cmd, {
-                args: args
-            }, function(err, stdout, stderr) {
+            proc.spawn("bash", {
+                args: ["-l", "-c", cmd + " '" + args.join("' '") + "' *"]
+            }, function(err, p) {
                 if (err) return callback(err);
                 
-                if (!SCRIPT) {
-                    var filter = new RegExp("^(?:"
-                        + EXCLUDE_LIST.forEach(util.escapeRegExp).join("|") 
-                        + ")(?:\n|$)", "gm");
+                var stdout = "", stderr = "";
+                p.stdout.on("data", function(c){
+                    stdout += c;
+                });
+                p.stderr.on("data", function(c){
+                    stderr += c;
+                });
+                p.on("exit", function(){
+                    // if (!SCRIPT) {
+                    //     var filter = new RegExp("^(?:"
+                    //         + EXCLUDE_LIST.map(util.escapeRegExp).join("|") 
+                    //         + ")(?:\n|$)", "gm");
+                        
+                    //     stdout = stdout.replace(stdout, filter);
+                    // }
                     
-                    stdout = stdout.replace(stdout, filter);
-                }
+                    lastList = stdout;
+                    
+                    callback(null, stdout);
+                });
                 
-                lastList = stdout;
-                
-                callback(null, stdout);
             });
         }
         
@@ -95,7 +109,7 @@ define(function(require, exports, module) {
             
             var isUpdating;
             function update(){
-                if (!isUpdating) return fsUpdate(null, 10000);
+                if (isUpdating) return fsUpdate(null, 10000);
                 
                 isUpdating = true;
                 fetch(function(err, list){
@@ -116,13 +130,15 @@ define(function(require, exports, module) {
                         
                         var item = {
                             label: name,
-                            type: "file"
+                            path: name,
+                            type: "file",
+                            status: "pending"
                         };
                         items.push(item);
                         lookup[name] = item;
                     });
                     
-                    plugin.root.items = items;
+                    plugin.all.items = items;
                     
                     callback();
                 });
@@ -151,98 +167,132 @@ define(function(require, exports, module) {
             // Or when a watcher fires
             watcher.on("delete", fsUpdateCheck);
             watcher.on("directory", fsUpdate);
+            
+            // Hook into the language
+            language.registerLanguageHandler("plugins/c9.ide.test.mocha/mocha_outline_worker");
+            
+            // Initial Fetch
+            update();
         }
         
-        var bdd = [
-            { regex: /(?:^|\n)\s*describe\s*(?:\.only)?\s*\(\s*['"](.*)$/, kind: "describe" },
-            { regex: /(?:^|\n)\s*it\s*(?:\.only)\s*\(\s*['"](.*)$/, kind: "it" }
-            // { regex: /(?:^|\n)\s*before\s*\($/, kind: "before" },
-            // { regex: /(?:^|\n)\s*after\s*\($/, kind: "beforeEach" },
-            // { regex: /(?:^|\n)\s*beforeEach\s*\($/, kind: "beforeEach" },
-            // { regex: /(?:^|\n)\s*afterEach\s*\($/, kind: "afterEach" }
-        ];
-        function parseBDD(node, contents){
-            // TODO: update
-            if (!parent.items) parent.items = [];
-            
-            var depth = 0, trail = [node];
-            contents.split("\n").forEach(function(line){
-                for (var i = 0; i < bdd.length; i++) {
-                    if (line.match(bdd[i])) {
-                        var n = {
-                            label: RegExp.$1 || bdd[i].kind, 
-                            kind: bdd[i].kind,
-                            status: "loaded"
-                        };
-                        
-                        if (i == 1) trail[trail.length - 1].items.push(n);
-                        else {
-                            n.depth = depth;
-                            
-                            // Deeper, it's a child
-                            if (depth > trail[trail.length - 1].depth) {
-                                trail.push(n);
-                            }
-                            // Same depth it's a sibling
-                            else if (depth == trail[trail.length - 1].depth) {
-                                trail.pop();
-                            }
-                            // Smaller depth - search for it
-                            else {
-                                while (trail.length && trail[trail.length - 1].depth > depth)
-                                    trail.pop();
-                            }
-                            
-                            trail[trail.length - 1].items.push(n);
-                        }
-                    }
-                    
-                    depth += (line.match(/\{/g) || []).length;
-                    depth -= (line.match(/\}/g) || []).length;
-                }
-            });
-            
-            return node;
-        }
-        
+        var wid = 0;
         function populate(node, callback) {
-            fs.readFile(node.label, function(err, contents){
+            fs.readFile(node.path, function(err, contents){
                 if (err) return callback(err);
                 
-                callback(null, parseBDD(node, contents));
+                // Invoke in the UI like:
+                language.getWorker(function(err, worker) {
+                    worker.emit("mocha_outline", { data: { id: ++wid, code: contents } });
+                    worker.on("mocha_outline_result", function onResponse(e) {
+                        if (e.data.id !== wid) return;
+                        worker.off("mocha_outline_result", onResponse);
+                        
+                        node.items = e.data.result;
+                        
+                        callback();
+                    });
+                });
             });
         }
         
         function getTestNode(node, id, name){
-            var found = (function recur(items){
-                for (var i = 0; i < items.length; i++) {
-                    if (items[i].label == name)
-                        return items[i];
+            var found = (function recur(items, pname){
+                for (var j, i = 0; i < items.length; i++) {
+                    j = items[i];
                     
-                    if (items.items) {
-                        var found = recur(items.items);
+                    if (pname + j.label == name)
+                        return j;
+                    
+                    if (j.items) {
+                        var found = recur(j.items, 
+                            pname + (j.type == "describe" ? j.label + " " : ""));
                         if (found) return found;
                     }
                 }
-            })([node]);
+            })([node], "");
             
             // TODO optional fallback to using id
             
             return found;
         }
         
-        function run(node, log, callback) {
+        function findNextTest(node){
+            return (function recur(node, down){
+                if (!node.parent) return false;
+                
+                var i, items;
+                if (down) {
+                    items = node.items;
+                    i = 0;
+                }
+                else {
+                    i = node.parent.items.indexOf(node) + 1;
+                    node = node.parent;
+                    items = node.items;
+                }
+                
+                for (var j; i < items.length; i++) {
+                    j = items[i];
+                    
+                    if (j.type == "test")
+                        return j;
+                    
+                    if (j.items) {
+                        var found = recur(j, true);
+                        if (found) return found;
+                    }
+                }
+                
+                return recur(node);
+            })(node, node.type != "test");
+        }
+        
+        function findFileNode(node){
+            while (node.type != "file") node = node.parent;
+            return node;
+        }
+        
+        function getFullTestName(node){
+            var name = [];
+            
+            do {
+                name.unshift(node.label)
+                node = node.parent;
+            } while (node.type != "file");
+            
+            return name.join(" ");
+        }
+        
+        function getAllTestNodes(node){
+            var nodes = [];
+            (function recur(items){
+                for (var j, i = 0; i < items.length; i++) {
+                    j = items[i];
+                    if (j.type == "test") nodes.push(j);
+                    else if (j.items) recur(j.items);
+                }
+            })([node]);
+            
+            return nodes;
+        }
+        
+        function run(node, progress, callback){
             var fileNode, path, passed = true, args = ["--reporter", "tap"];
             
             if (node.type == "file") {
                 fileNode = node;
+                progress.start(findNextTest(fileNode));
             }
             else {
-                fileNode = node._parent;
+                fileNode = findFileNode(node);
+                progress.start(node.type == "test" ? node : findNextTest(node));
                 
-                // if (node.type == "set" || node.type == "test") {
-                args.push("--grep", "^" + util.escapeRegExp(node.label) + "$");
+                args.push("--grep", "^" + util.escapeRegExp(getFullTestName(node)) 
+                    + (node.type == "test" ? "$" : ""));
             }
+            
+            var allTests = getAllTestNodes(node);
+            var allTestIndex = 0;
             
             // TODO: --debug --debug-brk
             args.push(fileNode.label);
@@ -253,10 +303,10 @@ define(function(require, exports, module) {
             }, function(err, pty){
                 if (err) return callback(err);
                 
-                var output = "", testCount, bailed, results = {}, totalTests = 0;
+                var output = "", testCount, bailed, totalTests = 0;
                 pty.on("data", function(c){
                     // Log to the raw viewer
-                    log(c);
+                    progress.log(c);
                     
                     // Number of tests
                     if (c.match(/^(\d+)\.\.(\d+)$/m)) {
@@ -294,6 +344,12 @@ define(function(require, exports, module) {
                         
                         // Count the tests
                         totalTests++;
+                        
+                        // Update progress
+                        progress.end(resultNode);
+                        
+                        var nextTest = allTests[++allTestIndex]; //findNextTest(resultNode);
+                        if (nextTest) progress.start(nextTest);
                     }
                     
                     // Output
@@ -302,8 +358,6 @@ define(function(require, exports, module) {
                     }
                 });
                 pty.on("exit", function(c){
-                    node.passed = passed;
-                    
                     // totalTests == testCount
                     
                     callback(null, node);
