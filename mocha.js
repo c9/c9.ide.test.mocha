@@ -138,7 +138,7 @@ define(function(require, exports, module) {
                         lookup[name] = item;
                     });
                     
-                    plugin.all.items = items;
+                    plugin.root.items = items;
                     
                     callback();
                 });
