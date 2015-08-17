@@ -322,13 +322,13 @@ define(function(require, exports, module) {
                     
                     // Update parsed nodes (set, test)
                     else if (c.match(/^(ok|not ok)\s+(\d+)\s+(.*)$/m)) {
-                        var pass = RegExp.$1 == "ok";
+                        var pass = RegExp.$1 == "ok" ? 1 : 0;
                         var id = RegExp.$2;
                         var name = RegExp.$3;
                         
                         if (name.match(/"(before all|before each|after all|after each)" hook/, "$1")) {
                             name = name.replace(/"(before all|before each|after all|after each)" hook/, "$1");
-                            if (!pass) bailed = true;
+                            if (!pass) bailed = true, pass = 2;
                         }
                         
                         // Fixes weird bug where filename is prefixed in the name
@@ -345,7 +345,7 @@ define(function(require, exports, module) {
                             
                             // Set Results
                             resultNode.output = output;
-                            resultNode.passed = pass ? 1 : 0;
+                            resultNode.passed = pass;
                             // resultNode.assertion = {
                             //     line: 0,
                             //     col: 10,
