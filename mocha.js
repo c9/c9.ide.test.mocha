@@ -282,6 +282,8 @@ define(function(require, exports, module) {
             var allTests = getAllTestNodes(node);
             var allTestIndex = 0;
             
+            if (!allTests.length) return callback();
+            
             if (node.type == "file") {
                 fileNode = node;
                 progress.start(allTests[allTestIndex]);
@@ -329,29 +331,39 @@ define(function(require, exports, module) {
                             if (!pass) bailed = true;
                         }
                         
+                        // Fixes weird bug where filename is prefixed in the name
+                        if (name.charAt(0) == "/")
+                            name = name.replace(/^[^ ]* /, "");
+                        
                         // Set file passed state
                         if (!pass) passed = false;
                         
                         // Update Node
                         var resultNode = getTestNode(fileNode, id, name);
                         
-                        // Set Results
-                        resultNode.output = output;
-                        resultNode.passed = pass ? 1 : 0;
-                        // resultNode.assertion = {
-                        //     line: 0,
-                        //     col: 10,
-                        //     message: ""
-                        // };
+                        if (resultNode) {
+                            
+                            // Set Results
+                            resultNode.output = output;
+                            resultNode.passed = pass ? 1 : 0;
+                            // resultNode.assertion = {
+                            //     line: 0,
+                            //     col: 10,
+                            //     message: ""
+                            // };
                         
-                        // Reset output
-                        output = "";
-                        
-                        // Count the tests
-                        totalTests++;
-                        
-                        // Update progress
-                        progress.end(resultNode);
+                            // Reset output
+                            output = "";
+                            
+                            // Count the tests
+                            totalTests++;
+                            
+                            // Update progress
+                            progress.end(resultNode);
+                        }
+                        else {
+                            debugger;
+                        }
                         
                         if (bailed) return;
                         
@@ -367,6 +379,7 @@ define(function(require, exports, module) {
                 pty.on("exit", function(c){
                     // totalTests == testCount
                     
+                    // Cleanup for before/after failure
                     allTests.forEach(function(n){ 
                         if (n.status != "loaded")
                             progress.end(n);
