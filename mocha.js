@@ -36,6 +36,7 @@ define(function(require, exports, module) {
         
         var lastList = "";
         var lookup = {};
+        var currentPty;
         
         function load() {
             // Potentially listen to the save event and run specific tests
@@ -196,11 +197,13 @@ define(function(require, exports, module) {
         }
         
         function getTestNode(node, id, name){
+            var count = 0;
             var found = (function recur(items, pname){
                 for (var j, i = 0; i < items.length; i++) {
                     j = items[i];
                     
-                    if (pname + j.label == name)
+                    if (j.type == "test") count++;
+                    if (pname + j.label == name || count == id)
                         return j;
                     
                     if (j.items) {
@@ -292,7 +295,7 @@ define(function(require, exports, module) {
                 fileNode = findFileNode(node);
                 progress.start(node.type == "test" ? node : allTests[allTestIndex]);
                 
-                args.push("--grep", "^" + util.escapeRegExp(getFullTestName(node)) 
+                args.push("--grep", util.escapeRegExp(getFullTestName(node))  //"^" + 
                     + (node.type == "test" ? "$" : ""));
             }
             
@@ -304,6 +307,8 @@ define(function(require, exports, module) {
                 cwd: dirname(path)
             }, function(err, pty){
                 if (err) return callback(err);
+                
+                currentPty = pty;
                 
                 var output = "", testCount, bailed, totalTests = 0;
                 pty.on("data", function(c){
@@ -332,8 +337,8 @@ define(function(require, exports, module) {
                         }
                         
                         // Fixes weird bug where filename is prefixed in the name
-                        if (name.charAt(0) == "/")
-                            name = name.replace(/^[^ ]* /, "");
+                        // if (name.charAt(0) == "/")
+                        //     name = name.replace(/^[^ ]* /, "");
                         
                         // Set file passed state
                         if (!pass) passed = false;
@@ -378,6 +383,7 @@ define(function(require, exports, module) {
                 });
                 pty.on("exit", function(c){
                     // totalTests == testCount
+                    currentPty = null;
                     
                     // Cleanup for before/after failure
                     allTests.forEach(function(n){ 
@@ -388,10 +394,17 @@ define(function(require, exports, module) {
                     callback(null, node);
                 });
             });
+            
+            return stop;
         }
         
         function coverage(){
             
+        }
+        
+        function stop(){
+            if (currentPty)
+                currentPty.kill();
         }
         
         /***** Lifecycle *****/
@@ -420,6 +433,11 @@ define(function(require, exports, module) {
              * 
              */
             run: run,
+            
+            /**
+             * 
+             */
+            stop: stop,
             
             /**
              * 
