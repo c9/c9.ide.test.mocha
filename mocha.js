@@ -310,7 +310,8 @@ define(function(require, exports, module) {
                 
                 currentPty = pty;
                 
-                var output = "", testCount, bailed, totalTests = 0;
+                var lastResultNode, testCount, bailed;
+                var output = "", totalTests = 0;
                 pty.on("data", function(c){
                     // Log to the raw viewer
                     progress.log(c);
@@ -336,10 +337,6 @@ define(function(require, exports, module) {
                             if (!pass) bailed = true, pass = 2;
                         }
                         
-                        // Fixes weird bug where filename is prefixed in the name
-                        // if (name.charAt(0) == "/")
-                        //     name = name.replace(/^[^ ]* /, "");
-                        
                         // Set file passed state
                         if (!pass) passed = false;
                         
@@ -349,10 +346,12 @@ define(function(require, exports, module) {
                             : getTestNode(node, id, name);
                         
                         if (resultNode) {
+                            lastResultNode = resultNode;
                             
                             // Set Results
                             resultNode.output = output;
                             resultNode.passed = pass;
+                            delete resultNode.stackTrace;
                             // resultNode.assertion = {
                             //     line: 0,
                             //     col: 10,
@@ -380,6 +379,17 @@ define(function(require, exports, module) {
                     
                     // Output
                     else {
+                        // Detect stack trace
+                        if (c.match(/^\s+at .*:\d+:\d+\)?$/m)) {
+                            if (!lastResultNode.stackTrace) {
+                                lastResultNode.stackTrace = parseTrace(c);
+                            }
+                            else if (c.indexOf("_onImmediate") !== 0) {
+                                lastResultNode.output += c;
+                            }
+                            return;
+                        }
+                        
                         output += c;
                     }
                 });
@@ -398,6 +408,39 @@ define(function(require, exports, module) {
             });
             
             return stop;
+        }
+        
+        /**
+         * This parses the different stack traces and puts them into one format
+         * This borrows heavily from TraceKit (https://github.com/occ/TraceKit)
+         * From: https://github.com/errwischt/stacktrace-parser/blob/master/lib/stacktrace-parser.js
+         */
+        var UNKNOWN_FUNCTION = '<unknown>';
+        function parseTrace(stackString){
+            var node  = /^\s*at (?:((?:\[object object\])?\S+(?: \[as \S+\])?) )?\(?(.*?):(\d+)(?::(\d+))?\)?\s*$/i;
+            var lines = stackString.split('\n');
+            var stack = [];
+            var message = [];
+            var parts, started;
+        
+            for (var i = 0, j = lines.length; i < j; ++i) {
+                if ((parts = node.exec(lines[i]))) {
+                    stack.push({
+                        'file': parts[2],
+                        'methodName': parts[1] || UNKNOWN_FUNCTION,
+                        'lineNumber': +parts[3],
+                        'column': parts[4] ? +parts[4] : null
+                    });
+                    started = true;
+                } 
+                else if (!started) {
+                    message.push(lines[i]);
+                }
+            }
+            
+            stack.message = message.join(" ");
+        
+            return stack;
         }
         
         function coverage(){
