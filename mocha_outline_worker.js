@@ -33,32 +33,38 @@ function getTestCases(ast) {
         'Call(Var("before"), _)', function(b, node) {
             items.push({
                 label: "before all",
-                type: "prepare"
+                type: "prepare",
+                pos: node.getPos()
             });
         },
         'Call(Var("beforeEach"), _)', function(b, node) {
             items.push({
                 label: "before each",
-                type: "prepare"
+                type: "prepare",
+                pos: node.getPos()
             });
         },
         'Call(Var("after"), _)', function(b, node) {
             items.push({
                 label: "before all",
-                type: "prepare"
+                type: "prepare",
+                pos: node.getPos()
             });
         },
         'Call(Var("afterEach"), _)', function(b, node) {
             items.push({
                 label: "before each",
-                type: "prepare"
+                type: "prepare",
+                pos: node.getPos()
             });
         },
         'Call(Var("it"), [String(description), _])', function(b, node) {
             items.push({
                 label: b.description.value,
                 kind: "it",
-                type: "test"
+                type: "test",
+                selpos: b.description.getPos(),
+                pos: node.getPos()
             });
         },
         'Call(Var("describe"), [String(description), body])', function(b, node) {
@@ -66,7 +72,9 @@ function getTestCases(ast) {
                 label: b.description.value,
                 items: getTestCases(b.body),
                 type: "describe",
-                isOpen: true
+                isOpen: true,
+                selpos: b.description.getPos(),
+                pos: node.getPos()
             });
             return node;
         }
