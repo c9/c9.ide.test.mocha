@@ -344,7 +344,9 @@ define(function(require, exports, module) {
                         if (!pass) passed = false;
                         
                         // Update Node
-                        var resultNode = getTestNode(fileNode, id, name);
+                        var resultNode = node.type == "test"
+                            ? node
+                            : getTestNode(node, id, name);
                         
                         if (resultNode) {
                             
