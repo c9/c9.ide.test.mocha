@@ -17,6 +17,7 @@ define(function(require, exports, module) {
         var watcher = imports.watcher;
         
         var dirname = require("path").dirname;
+        var parseLcov = require("./lcov-parse");
         
         /***** Initialization *****/
         
@@ -131,7 +132,7 @@ define(function(require, exports, module) {
                         
                         var item = {
                             label: name,
-                            path: name,
+                            path: "/" + name,
                             type: "file",
                             status: "pending"
                         };
@@ -279,8 +280,13 @@ define(function(require, exports, module) {
             return nodes;
         }
         
-        function run(node, progress, callback){
-            var fileNode, path, passed = true, args = ["--reporter", "tap"];
+        var uniqueId = 0;
+        function run(node, progress, options, callback){
+            if (typeof options == "function")
+                callback = options, options = null;
+            
+            var fileNode, path, passed = true;
+            var exec = "mocha", args = ["--reporter", "tap"];
             
             var allTests = getAllTestNodes(node);
             var allTestIndex = 0;
@@ -302,7 +308,15 @@ define(function(require, exports, module) {
             // TODO: --debug --debug-brk
             args.push(fileNode.label);
             
-            proc.pty("mocha", {
+            var withCodeCoverage = options && options.withCodeCoverage;
+            var coveragePath = "~/.c9/coverage/run" + ++uniqueId;
+            if (withCodeCoverage) {
+                exec = "istanbul";
+                args.unshift("cover", "--print", "none", "--report", 
+                    "lcovonly", "--dir", coveragePath, "_mocha", "--");
+            }
+            
+            proc.pty(exec, {
                 args: args,
                 cwd: dirname(path)
             }, function(err, pty){
@@ -384,7 +398,7 @@ define(function(require, exports, module) {
                             if (!lastResultNode.stackTrace) {
                                 lastResultNode.stackTrace = parseTrace(c);
                             }
-                            else if (c.indexOf("_onImmediate") !== 0) {
+                            else if (c.indexOf("mocha/lib/runner.js") == -1) {
                                 lastResultNode.output += c;
                             }
                             return;
@@ -397,13 +411,31 @@ define(function(require, exports, module) {
                     // totalTests == testCount
                     currentPty = null;
                     
-                    // Cleanup for before/after failure
-                    allTests.forEach(function(n){ 
-                        if (n.status != "loaded")
-                            progress.end(n);
-                    });
+                    if (withCodeCoverage) {
+                        fs.readFile(coveragePath + "/lcov.info", function(err, data){
+                            if (err) debugger;
+                            
+                            parseLcov(data, function(err, result){
+                                // TODO clear coverage of all sub-nodes
+                                // TODO remove coveragePath
+                                node.coverage = result;
+                                node.coveragePath = coveragePath;
+                                
+                                done();
+                            });
+                        });
+                    }
+                    else done();
                     
-                    callback(null, node);
+                    function done(){
+                        // Cleanup for before/after failure
+                        allTests.forEach(function(n){ 
+                            if (n.status != "loaded")
+                                progress.end(n);
+                        });
+                        
+                        callback(null, node);
+                    }
                 });
             });
             
