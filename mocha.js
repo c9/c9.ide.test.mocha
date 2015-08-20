@@ -395,10 +395,11 @@ define(function(require, exports, module) {
                     else {
                         // Detect stack trace
                         if (c.match(/^\s+at .*:\d+:\d+\)?$/m)) {
-                            if (!lastResultNode.stackTrace) {
-                                lastResultNode.stackTrace = parseTrace(c);
+                            var stackTrace = parseTrace(c);
+                            if (!lastResultNode.stackTrace && !withCodeCoverage) {
+                                lastResultNode.stackTrace = stackTrace;
                             }
-                            else if (c.indexOf("mocha/lib/runner.js") == -1) {
+                            else if ((stackTrace.message + stackTrace[0].file).indexOf("mocha/lib/runner.js") == -1) {
                                 lastResultNode.output += c;
                             }
                             return;
