@@ -56,7 +56,7 @@ define(function(require, exports, module) {
         function fetch(callback) {
             var cmd, args;
             
-            return callback(null, "plugins/c9.analytics/analytics_test.js\nplugins/c9.api/base_test.js\nplugins/c9.api/collab_test.js\nplugins/c9.api/docker_test.js\nplugins/c9.api/package_test.js\nplugins/c9.api/quota_test.js\nplugins/c9.api/settings_test.js\nplugins/c9.api/sitemap-writer_test.js\nplugins/c9.api/stats_test.js\nplugins/c9.api/vfs_test.js");
+            return callback(null, "plugins/c9.cli.publish/publish_test.js\nplugins/c9.analytics/analytics_test.js\nplugins/c9.api/base_test.js\nplugins/c9.api/collab_test.js\nplugins/c9.api/docker_test.js\nplugins/c9.api/package_test.js\nplugins/c9.api/quota_test.js\nplugins/c9.api/settings_test.js\nplugins/c9.api/sitemap-writer_test.js\nplugins/c9.api/stats_test.js\nplugins/c9.api/vfs_test.js");
             
             if (SCRIPT) {
                 args = SCRIPT.split(" ");
@@ -361,8 +361,12 @@ define(function(require, exports, module) {
                             var stackTrace = parseTrace(c);
                             if ((stackTrace.message + stackTrace[0].file).indexOf("mocha/lib/runner.js") == -1) {
                                 if (!withCodeCoverage) {
-                                    if (!lastResultNode.annotations) lastResultNode.annotations = {};
-                                    lastResultNode.annotations[stackTrace[0].lineNumber] = stackTrace.message;
+                                    if (!lastResultNode.annotations) lastResultNode.annotations = [];
+                                    lastResultNode.annotations.push({
+                                        line: stackTrace[0].lineNumber,
+                                        column: stackTrace[0].column,
+                                        message: stackTrace.message
+                                    });
                                 }
                                 else 
                                     lastResultNode.output += c;
