@@ -67,7 +67,27 @@ function getTestCases(ast) {
                 pos: node.getPos()
             });
         },
+        'Call(PropAccess(Var("it"), "only"), [String(description), _])', function(b, node) {
+            items.push({
+                label: b.description.value,
+                kind: "it",
+                type: "test",
+                selpos: b.description.getPos(),
+                pos: node.getPos()
+            });
+        },
         'Call(Var("describe"), [String(description), body])', function(b, node) {
+            items.push({
+                label: b.description.value,
+                items: getTestCases(b.body),
+                type: "testset",
+                isOpen: true,
+                selpos: b.description.getPos(),
+                pos: node.getPos()
+            });
+            return node;
+        },
+        'Call(PropAccess(Var("describe"), "only"), [String(description), body])', function(b, node) {
             items.push({
                 label: b.description.value,
                 items: getTestCases(b.body),
