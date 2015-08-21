@@ -21,7 +21,6 @@ define(function(require, exports, module) {
         var File = test.File;
         var TestSet = test.TestSet;
         var Test = test.Test;
-        var Node = test.Node;
         
         var dirname = require("path").dirname;
         
@@ -271,64 +270,15 @@ define(function(require, exports, module) {
             return found;
         }
         
-        function findNextTest(node){
-            return (function recur(node, down){
-                if (!node.parent) return false;
-                
-                var i, items;
-                if (down) {
-                    items = node.items;
-                    i = 0;
-                }
-                else {
-                    i = node.parent.items.indexOf(node) + 1;
-                    node = node.parent;
-                    items = node.items;
-                }
-                
-                for (var j; i < items.length; i++) {
-                    j = items[i];
-                    
-                    if (j.type == "test" || j.type == "prepare")
-                        return j;
-                    
-                    if (j.items) {
-                        var found = recur(j, true);
-                        if (found) return found;
-                    }
-                }
-                
-                return recur(node);
-            })(node, node.type != "test");
-        }
-        
-        function findFileNode(node){
-            while (node.type != "file") node = node.parent;
-            return node;
-        }
-        
         function getFullTestName(node){
             var name = [];
             
             do {
-                name.unshift(node.label)
+                name.unshift(node.label);
                 node = node.parent;
             } while (node.type != "file");
             
             return name.join(" ");
-        }
-        
-        function getAllTestNodes(node){
-            var nodes = [];
-            (function recur(items){
-                for (var j, i = 0; i < items.length; i++) {
-                    j = items[i];
-                    if (j.type == "test") nodes.push(j);
-                    else if (j.items) recur(j.items);
-                }
-            })([node]);
-            
-            return nodes;
         }
         
         var uniqueId = 0;
@@ -339,7 +289,7 @@ define(function(require, exports, module) {
             var fileNode, path, passed = true;
             var exec = "mocha", args = ["--reporter", "tap"];
             
-            var allTests = getAllTestNodes(node);
+            var allTests = node.findAllNodes("test");
             var allTestIndex = 0;
             
             if (!allTests.length) return callback();
@@ -349,7 +299,7 @@ define(function(require, exports, module) {
                 progress.start(allTests[allTestIndex]);
             }
             else {
-                fileNode = findFileNode(node);
+                fileNode = node.findFileNode();
                 progress.start(node.type == "test" ? node : allTests[allTestIndex]);
                 
                 args.push("--grep", util.escapeRegExp(getFullTestName(node))  //"^" + 
@@ -522,10 +472,6 @@ define(function(require, exports, module) {
             return stack;
         }
         
-        function coverage(){
-            
-        }
-        
         function stop(){
             if (currentPty)
                 currentPty.kill();
@@ -561,12 +507,7 @@ define(function(require, exports, module) {
             /**
              * 
              */
-            stop: stop,
-            
-            /**
-             * 
-             */
-            coverage: coverage
+            stop: stop
         });
         
         register(null, {
