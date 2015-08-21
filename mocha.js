@@ -328,7 +328,7 @@ define(function(require, exports, module) {
                             // Set Results
                             resultNode.output = output;
                             resultNode.passed = pass;
-                            delete resultNode.stackTrace;
+                            resultNode.annotations = null;
                             // resultNode.assertion = {
                             //     line: 0,
                             //     col: 10,
@@ -359,11 +359,13 @@ define(function(require, exports, module) {
                         // Detect stack trace
                         if (c.match(/^\s+at .*:\d+:\d+\)?$/m)) {
                             var stackTrace = parseTrace(c);
-                            if (!lastResultNode.stackTrace && !withCodeCoverage) {
-                                lastResultNode.stackTrace = stackTrace;
-                            }
-                            else if ((stackTrace.message + stackTrace[0].file).indexOf("mocha/lib/runner.js") == -1) {
-                                lastResultNode.output += c;
+                            if ((stackTrace.message + stackTrace[0].file).indexOf("mocha/lib/runner.js") == -1) {
+                                if (!withCodeCoverage) {
+                                    if (!lastResultNode.annotations) lastResultNode.annotations = {};
+                                    lastResultNode.annotations[stackTrace[0].lineNumber] = stackTrace.message;
+                                }
+                                else 
+                                    lastResultNode.output += c;
                             }
                             return;
                         }
