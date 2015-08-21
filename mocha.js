@@ -135,13 +135,13 @@ define(function(require, exports, module) {
                             return;
                         }
                         
-                        var item = new File({
+                        var file = new File({
                             label: name,
                             path: "/" + name
                         });
                         
-                        items.push(item);
-                        lookup[name] = item;
+                        items.push(file);
+                        lookup[name] = file;
                     });
                     
                     plugin.root.items = items;
@@ -181,71 +181,33 @@ define(function(require, exports, module) {
             update();
         }
         
-        var wid = 0;
         function populate(node, callback) {
-            // node.on("change", updateOutline);
+            node.on("change", function(value){ 
+                updateOutline(node, value); 
+                return true;
+            });
             
             fs.readFile(node.path, function(err, contents){
                 if (err) return callback(err);
                 
-                language.getWorker(function(err, worker) {
-                    worker.emit("mocha_outline", { data: { id: ++wid, code: contents } });
-                    worker.on("mocha_outline_result", function onResponse(e) {
-                        if (e.data.id !== wid) return;
-                        worker.off("mocha_outline_result", onResponse);
-                        
-                        node.items = convertToData(e.data.result);
-                        
-                        callback();
-                    });
+                updateOutline(node, contents, callback)
+            });
+        }
+        
+        var wid = 0;
+        function updateOutline(node, contents, callback) {
+            language.getWorker(function(err, worker) {
+                worker.emit("mocha_outline", { data: { id: ++wid, code: contents } });
+                worker.on("mocha_outline_result", function onResponse(e) {
+                    if (e.data.id !== wid) return;
+                    worker.off("mocha_outline_result", onResponse);
+                    
+                    node.importItems(e.data.result);
+                    
+                    callback && callback();
                 });
             });
         }
-        
-        // Destructive conversion process
-        function convertToData(list){
-            return list.map(function(node){
-                if (node.items) node.items = convertToData(node.items);
-                return node.type == "testset" ? new TestSet(node) : new Test(node);
-            });
-        }
-        
-        // TODO
-        // - Start using data objects (emitter based, tree walker to find certain node types)
-        // - Implement change event and create updateOutline
-        // - Instead of .stackTrace do .annotations = {<linenr>: <message>}
-        // session = tab.document.getSession().session;
-        //     session && session.on("changeMode", onChange);
-        //     session && session.on("change", onChange);
-        // function updateOutline(now) {
-        //     if (!isActive)
-        //         return;
-        //     dirty = true;
-        //     if (now && tabs.focussedTab && !scheduled) {
-        //         if (!worker) {
-        //             return language.getWorker(function(err, _worker) {
-        //                 worker = _worker;
-        //                 updateOutline(true);
-        //             });
-        //         }
-                
-        //         // have to use timeout since worker uses timeout as well
-        //         setTimeout(function () {
-        //             dirty = false;
-        //             worker.emit("outline", { data: {
-        //                 ignoreFilter: false,
-        //                 path: tabs.focussedTab && tabs.focussedTab.path
-        //             }});
-        //         });
-                
-        //         // Don't schedule new job until data received or timeout
-        //         scheduled = true;
-        //         clearTimeout(scheduleWatcher);
-        //         scheduleWatcher = setTimeout(function() {
-        //             scheduled = false;
-        //         }, 10000);
-        //     }
-        // }
         
         function getTestNode(node, id, name){
             var count = 0;
