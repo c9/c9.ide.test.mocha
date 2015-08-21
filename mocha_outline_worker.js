@@ -71,7 +71,7 @@ function getTestCases(ast) {
             items.push({
                 label: b.description.value,
                 items: getTestCases(b.body),
-                type: "describe",
+                type: "testset",
                 isOpen: true,
                 selpos: b.description.getPos(),
                 pos: node.getPos()

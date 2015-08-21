@@ -1,6 +1,6 @@
 define(function(require, exports, module) {
     main.consumes = [
-        "TestRunner", "settings", "preferences", "proc", "util", "fs", 
+        "TestRunner", "settings", "preferences", "proc", "util", "fs", "test",
         "watcher", "language"
     ];
     main.provides = ["test.mocha"];
@@ -12,12 +12,18 @@ define(function(require, exports, module) {
         // var prefs = imports.preferences;
         var proc = imports.proc;
         var util = imports.util;
+        var test = imports.test;
         var fs = imports.fs;
         var language = imports.language;
         var watcher = imports.watcher;
         
+        var Coverage = test.Coverage;
+        var File = test.File;
+        var TestSet = test.TestSet;
+        var Test = test.Test;
+        var Node = test.Node;
+        
         var dirname = require("path").dirname;
-        var parseLcov = require("./lcov-parse");
         
         /***** Initialization *****/
         
@@ -130,12 +136,11 @@ define(function(require, exports, module) {
                             return;
                         }
                         
-                        var item = {
+                        var item = new File({
                             label: name,
-                            path: "/" + name,
-                            type: "file",
-                            status: "pending"
-                        };
+                            path: "/" + name
+                        });
+                        
                         items.push(item);
                         lookup[name] = item;
                     });
@@ -190,11 +195,19 @@ define(function(require, exports, module) {
                         if (e.data.id !== wid) return;
                         worker.off("mocha_outline_result", onResponse);
                         
-                        node.items = e.data.result;
+                        node.items = convertToData(e.data.result);
                         
                         callback();
                     });
                 });
+            });
+        }
+        
+        // Destructive conversion process
+        function convertToData(list){
+            return list.map(function(node){
+                if (node.items) node.items = convertToData(node.items);
+                return node.type == "testset" ? new TestSet(node) : new Test(node);
             });
         }
         
@@ -247,7 +260,7 @@ define(function(require, exports, module) {
                     
                     if (j.items) {
                         var found = recur(j.items, 
-                            pname + (j.type == "describe" ? j.label + " " : ""));
+                            pname + (j.type == "testset" ? j.label + " " : ""));
                         if (found) return found;
                     }
                 }
@@ -347,7 +360,7 @@ define(function(require, exports, module) {
             args.push(fileNode.label);
             
             var withCodeCoverage = options && options.withCodeCoverage;
-            var coveragePath = "~/.c9/coverage/run" + ++uniqueId;
+            var coveragePath = "~/.c9/coverage/run" + (++uniqueId);
             if (withCodeCoverage) {
                 exec = "istanbul";
                 args.unshift("cover", "--print", "none", "--report", 
@@ -451,29 +464,24 @@ define(function(require, exports, module) {
                     currentPty = null;
                     
                     if (withCodeCoverage) {
-                        fs.readFile(coveragePath + "/lcov.info", function(err, data){
-                            if (err) debugger;
+                        fs.readFile(coveragePath + "/lcov.info", function(err, lcovString){
+                            if (err) return done(err);
                             
-                            parseLcov(data, function(err, result){
-                                // TODO clear coverage of all sub-nodes
-                                // TODO remove coveragePath
-                                node.coverage = result;
-                                node.coveragePath = coveragePath;
-                                
-                                done();
-                            });
+                            node.coverage = Coverage.fromLCOV(lcovString, coveragePath);
+                            
+                            done();
                         });
                     }
                     else done();
                     
-                    function done(){
+                    function done(err){
                         // Cleanup for before/after failure
                         allTests.forEach(function(n){ 
                             if (n.status != "loaded")
                                 progress.end(n);
                         });
                         
-                        callback(null, node);
+                        callback(err, node);
                     }
                 });
             });
