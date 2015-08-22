@@ -102,7 +102,7 @@ define(function(require, exports, module) {
             });
         }
         
-        function init(root, callback) {
+        function init(filter, callback) {
             /* 
                 Set hooks to update list
                 - Strategies:
@@ -129,6 +129,8 @@ define(function(require, exports, module) {
                     lookup = {};
                     
                     list.split("\n").forEach(function(name){
+                        if (filter("/" + name)) return;
+                        
                         if (lastLookup[name]) {
                             items.push(lookup[name] = lastLookup[name]);
                             delete lastLookup[name];
@@ -146,7 +148,7 @@ define(function(require, exports, module) {
                     
                     plugin.root.items = items;
                     
-                    callback();
+                    callback(null, items);
                 });
             }
             
