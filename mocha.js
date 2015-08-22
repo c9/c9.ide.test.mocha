@@ -1,7 +1,7 @@
 define(function(require, exports, module) {
     main.consumes = [
         "TestRunner", "settings", "preferences", "proc", "util", "fs", "test",
-        "watcher", "language"
+        "watcher", "language", "c9"
     ];
     main.provides = ["test.mocha"];
     return main;
@@ -14,6 +14,7 @@ define(function(require, exports, module) {
         var util = imports.util;
         var test = imports.test;
         var fs = imports.fs;
+        var c9 = imports.c9;
         var language = imports.language;
         var watcher = imports.watcher;
         
@@ -282,10 +283,14 @@ define(function(require, exports, module) {
                 args.unshift("cover", "--print", "none", "--report", 
                     "lcovonly", "--dir", coveragePath, "_mocha", "--");
             }
-            
+            if (c9.platform == "win32") {
+                args.unshift("-c", '"$0" "$@"', exec);
+                exec = "bash.exe";
+            }
             proc.pty(exec, {
                 args: args,
-                cwd: dirname(path)
+                cwd: dirname(path),
+                fakePty: c9.platform == "win32"
             }, function(err, pty){
                 if (err) return callback(err);
                 
