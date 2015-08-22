@@ -179,6 +179,8 @@ define(function(require, exports, module) {
             // Hook into the language
             language.registerLanguageHandler("plugins/c9.ide.test.mocha/mocha_outline_worker");
             
+            test.on("update", update);
+            
             // Initial Fetch
             update();
         }
