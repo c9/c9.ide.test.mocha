@@ -49,6 +49,7 @@ define(function(require, exports, module) {
                         "Script To Fetch All Test Files In The Workspace" : {
                            name: "txtTestMocha",
                            type: "textarea-row",
+                           fixedFont: true,
                            width: 600,
                            height: 200,
                            rowheight: 250,
