@@ -1,7 +1,7 @@
 define(function(require, exports, module) {
     main.consumes = [
         "TestRunner", "settings", "preferences", "proc", "util", "fs", "test",
-        "watcher", "language", "c9"
+        "watcher", "language", "c9", "debugger"
     ];
     main.provides = ["test.mocha"];
     return main;
@@ -16,17 +16,27 @@ define(function(require, exports, module) {
         var fs = imports.fs;
         var c9 = imports.c9;
         var language = imports.language;
+        var debug = imports["debugger"];
         var watcher = imports.watcher;
         
         var Coverage = test.Coverage;
         var File = test.File;
         
         var dirname = require("path").dirname;
+        var join = require("path").join;
         
         /***** Initialization *****/
         
         var plugin = new TestRunner("Ajax.org", main.consumes, {
-            caption: "Mocha Javascript Tests"
+            caption: "Mocha Javascript Tests",
+            options: [
+                {
+                    title: "Enable Debugger",
+                    type: "checkbox-single",
+                    setting: "state/test/mocha/@debug",
+                    name: "debug"
+                }
+            ]
         });
         // var emit = plugin.getEmitter();
         
@@ -83,7 +93,7 @@ define(function(require, exports, module) {
         /***** Methods *****/
         
         function fetch(callback) {
-            // return callback(null, "plugins/c9.cli.publish/publish_test.js\nplugins/c9.analytics/analytics_test.js\nplugins/c9.api/base_test.js\nplugins/c9.api/collab_test.js\nplugins/c9.api/docker_test.js\nplugins/c9.api/package_test.js\nplugins/c9.api/quota_test.js\nplugins/c9.api/settings_test.js\nplugins/c9.api/sitemap-writer_test.js\nplugins/c9.api/stats_test.js\nplugins/c9.api/vfs_test.js");
+            return callback(null, "plugins/c9.cli.publish/publish_test.js\nplugins/c9.analytics/analytics_test.js\nplugins/c9.api/base_test.js\nplugins/c9.api/collab_test.js\nplugins/c9.api/docker_test.js\nplugins/c9.api/package_test.js\nplugins/c9.api/quota_test.js\nplugins/c9.api/settings_test.js\nplugins/c9.api/sitemap-writer_test.js\nplugins/c9.api/stats_test.js\nplugins/c9.api/vfs_test.js");
             
             var script = test.config.mocha || DEFAULTSCRIPT;
             
@@ -277,10 +287,34 @@ define(function(require, exports, module) {
                     + (node.type == "test" ? "$" : ""));
             }
             
-            // TODO: --debug --debug-brk
-            args.push(fileNode.label);
-            
             var withCodeCoverage = options && options.withCodeCoverage;
+            var withDebug = options && options.debug;
+            
+            if (!withCodeCoverage && withDebug) {
+                // "${debug?--nocrankshaft}",
+                // "${debug?--nolazy}",
+                // "${debug?`node --version | grep -vqE \"v0\\..\\.\" && echo --nodead_code_elimination`}",
+                // "${debug?--debug-brk=15454}",
+                
+                args.push("--debug", "--debug-brk=15455"); // TODO extra node options
+                
+                debug.debug({
+                    STARTED: 2,
+                    runner: {
+                        "debugger": "v8",
+                        "debugport": 15455
+                    },
+                    running: 2,
+                    name: plugin.root.label,
+                    meta: { $debugger: true }
+                }, false, function(err) {
+                    if (err)
+                        return; // Either the debugger is not found or paused
+                });
+            }
+            
+            args.push(join(c9.workspaceDir, fileNode.path));
+            
             var coveragePath = "~/.c9/coverage/run" + (++uniqueId);
             if (withCodeCoverage) {
                 exec = "istanbul";
@@ -291,6 +325,7 @@ define(function(require, exports, module) {
                 args.unshift("-c", '"$0" "$@"', exec);
                 exec = "bash.exe";
             }
+            
             proc.pty(exec, {
                 args: args,
                 cwd: dirname(path),
