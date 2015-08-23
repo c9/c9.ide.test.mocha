@@ -9,7 +9,7 @@ define(function(require, exports, module) {
     function main(options, imports, register) {
         var TestRunner = imports.TestRunner;
         // var settings = imports.settings;
-        // var prefs = imports.preferences;
+        var prefs = imports.preferences;
         var proc = imports.proc;
         var util = imports.util;
         var test = imports.test;
@@ -20,8 +20,6 @@ define(function(require, exports, module) {
         
         var Coverage = test.Coverage;
         var File = test.File;
-        var TestSet = test.TestSet;
-        var Test = test.Test;
         
         var dirname = require("path").dirname;
         
@@ -32,11 +30,7 @@ define(function(require, exports, module) {
         });
         // var emit = plugin.getEmitter();
         
-        var SCRIPT = "";
-        var MATCH_PATTERN = '^\\s*describe\\(';
-        var INCLUDE_PATTERN = "";
-        var EXCLUDE_PATTERN = 'node_modules';
-        var EXCLUDE_LIST = [];
+        var DEFAULTSCRIPT = "grep -lsR -E '^\\s*describe\\(' --exclude-dir node_modules *";
         
         // TODO: Implement the pure find files with pattern feature in nak
         // grep -ls -E "^\\s*describe\\(" * -R --exclude-dir node_modules
@@ -44,38 +38,56 @@ define(function(require, exports, module) {
         var lastList = "";
         var lookup = {};
         var currentPty;
+        var update;
         
         function load() {
-            // Potentially listen to the save event and run specific tests
+            prefs.add({
+                "Test" : {
+                    position: 1000,
+                    "Mocha Test Runner" : {
+                        position: 1000,
+                        "Script To Fetch All Test Files In The Workspace" : {
+                           name: "txtTestMocha",
+                           type: "textarea-row",
+                           width: 600,
+                           height: 200,
+                           rowheight: 250,
+                           position: 1000
+                       },
+                    }
+                }
+            }, plugin);
             
-            // prefs...
-            
+            plugin.getElement("txtTestMocha", function(txtTestMocha) {
+                var ta = txtTestMocha.lastChild;
+                
+                ta.on("blur", function(e) {
+                    if (test.config.mocha == ta.value) return;
+                    
+                    test.config.mocha = ta.value;
+                    test.saveConfig(function(){
+                        update();
+                    });
+                });
+                
+                test.on("ready", function(){
+                    ta.setValue(test.config.mocha || DEFAULTSCRIPT);
+                }, plugin);
+                test.on("updateConfig", function(){
+                    ta.setValue(test.config.mocha || DEFAULTSCRIPT);
+                }, plugin);
+            }, plugin);
         }
         
         /***** Methods *****/
         
         function fetch(callback) {
-            var cmd, args;
+            // return callback(null, "plugins/c9.cli.publish/publish_test.js\nplugins/c9.analytics/analytics_test.js\nplugins/c9.api/base_test.js\nplugins/c9.api/collab_test.js\nplugins/c9.api/docker_test.js\nplugins/c9.api/package_test.js\nplugins/c9.api/quota_test.js\nplugins/c9.api/settings_test.js\nplugins/c9.api/sitemap-writer_test.js\nplugins/c9.api/stats_test.js\nplugins/c9.api/vfs_test.js");
             
-            return callback(null, "plugins/c9.cli.publish/publish_test.js\nplugins/c9.analytics/analytics_test.js\nplugins/c9.api/base_test.js\nplugins/c9.api/collab_test.js\nplugins/c9.api/docker_test.js\nplugins/c9.api/package_test.js\nplugins/c9.api/quota_test.js\nplugins/c9.api/settings_test.js\nplugins/c9.api/sitemap-writer_test.js\nplugins/c9.api/stats_test.js\nplugins/c9.api/vfs_test.js");
-            
-            if (SCRIPT) {
-                args = SCRIPT.split(" ");
-                cmd = args.shift();
-            }
-            else {
-                cmd = "grep";
-                args = ["-lsR", "-E", MATCH_PATTERN];
-                
-                if (EXCLUDE_PATTERN)
-                    args.push("--exclude-dir", EXCLUDE_PATTERN);
-                    
-                if (INCLUDE_PATTERN)
-                    args.push("--include", INCLUDE_PATTERN);
-            }
+            var script = test.config.mocha || DEFAULTSCRIPT;
             
             proc.spawn("bash", {
-                args: ["-l", "-c", cmd + " '" + args.join("' '") + "' *"]
+                args: ["-l", "-c", script]
             }, function(err, p) {
                 if (err) return callback(err);
                 
@@ -87,16 +99,7 @@ define(function(require, exports, module) {
                     stderr += c;
                 });
                 p.on("exit", function(){
-                    // if (!SCRIPT) {
-                    //     var filter = new RegExp("^(?:"
-                    //         + EXCLUDE_LIST.map(util.escapeRegExp).join("|") 
-                    //         + ")(?:\n|$)", "gm");
-                        
-                    //     stdout = stdout.replace(stdout, filter);
-                    // }
-                    
                     lastList = stdout;
-                    
                     callback(null, stdout);
                 });
                 
@@ -116,7 +119,7 @@ define(function(require, exports, module) {
             */
             
             var isUpdating;
-            function update(){
+            update = function(){
                 if (isUpdating) return fsUpdate(null, 10000);
                 
                 isUpdating = true;
@@ -367,6 +370,8 @@ define(function(require, exports, module) {
                     else {
                         // Detect stack trace
                         if (c.match(/^\s+at .*:\d+:\d+\)?$/m)) {
+                            if (!lastResultNode) lastResultNode = getTestNode(fileNode, 1);
+                            
                             var stackTrace = parseTrace(c);
                             if ((stackTrace.message + stackTrace[0].file).indexOf("mocha/lib/runner.js") == -1) {
                                 if (!withCodeCoverage) {
