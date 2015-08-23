@@ -317,12 +317,14 @@ define(function(require, exports, module) {
             args.push(join(c9.workspaceDir, fileNode.path));
             
             var coveragePath = "~/.c9/coverage/run" + (++uniqueId);
+            var isWin = c9.platform == "win32";
             if (withCodeCoverage) {
                 exec = "istanbul";
                 args.unshift("cover", "--print", "none", "--report", 
-                    "lcovonly", "--dir", coveragePath, "_mocha", "--");
+                    "lcovonly", "--dir", coveragePath, 
+                    isWin ? "node_modules/mocha/bin/_mocha" : "_mocha", "--");
             }
-            if (c9.platform == "win32") {
+            if (isWin) {
                 args.unshift("-c", '"$0" "$@"', exec);
                 exec = "bash.exe";
             }
@@ -330,7 +332,7 @@ define(function(require, exports, module) {
             proc.pty(exec, {
                 args: args,
                 cwd: dirname(path),
-                fakePty: c9.platform == "win32"
+                fakePty: isWin
             }, function(err, pty){
                 if (err) return callback(err);
                 
