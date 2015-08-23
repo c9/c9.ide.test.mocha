@@ -133,7 +133,7 @@ define(function(require, exports, module) {
                     lookup = {};
                     
                     list.split("\n").forEach(function(name){
-                        if (filter("/" + name)) return;
+                        if (!name || filter("/" + name)) return;
                         
                         if (lastLookup[name]) {
                             items.push(lookup[name] = lastLookup[name]);
