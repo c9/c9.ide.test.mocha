@@ -48,7 +48,7 @@ define(function(require, exports, module) {
         var lastList = "";
         var lookup = {};
         var currentPty;
-        var update;
+        var update, debugging;
         
         function load() {
             prefs.add({
@@ -298,6 +298,7 @@ define(function(require, exports, module) {
                 
                 args.push("--debug", "--debug-brk=15455"); // TODO extra node options
                 
+                debugging = true;
                 debug.debug({
                     STARTED: 2,
                     runner: {
@@ -309,7 +310,7 @@ define(function(require, exports, module) {
                     meta: { $debugger: true }
                 }, false, function(err) {
                     if (err)
-                        return; // Either the debugger is not found or paused
+                        return (debugging = false); // Either the debugger is not found or paused
                 });
             }
             
@@ -493,6 +494,9 @@ define(function(require, exports, module) {
         function stop(){
             if (currentPty)
                 currentPty.kill();
+            
+            if (debugging)
+                debug.stop();
         }
         
         /***** Lifecycle *****/
