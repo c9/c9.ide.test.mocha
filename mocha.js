@@ -40,7 +40,7 @@ define(function(require, exports, module) {
         });
         // var emit = plugin.getEmitter();
         
-        var DEFAULTSCRIPT = "grep -lsR -E '^\\s*describe\\(' --exclude-dir node_modules *";
+        var DEFAULTSCRIPT = "grep -lsR -E '^\\s*describe\\(' --exclude-dir node_modules * | grep .js$";
         
         // TODO: Implement the pure find files with pattern feature in nak
         // grep -ls -E "^\\s*describe\\(" * -R --exclude-dir node_modules
@@ -93,7 +93,7 @@ define(function(require, exports, module) {
         /***** Methods *****/
         
         function fetch(callback) {
-            // return callback(null, "plugins/c9.cli.publish/publish_test.js\nplugins/c9.analytics/analytics_test.js\nplugins/c9.api/base_test.js\nplugins/c9.api/collab_test.js\nplugins/c9.api/docker_test.js\nplugins/c9.api/package_test.js\nplugins/c9.api/quota_test.js\nplugins/c9.api/settings_test.js\nplugins/c9.api/sitemap-writer_test.js\nplugins/c9.api/stats_test.js\nplugins/c9.api/vfs_test.js");
+            return callback(null, "plugins/c9.cli.publish/publish_test.js\nplugins/c9.analytics/analytics_test.js\nplugins/c9.api/base_test.js\nplugins/c9.api/collab_test.js\nplugins/c9.api/docker_test.js\nplugins/c9.api/package_test.js\nplugins/c9.api/quota_test.js\nplugins/c9.api/settings_test.js\nplugins/c9.api/sitemap-writer_test.js\nplugins/c9.api/stats_test.js\nplugins/c9.api/vfs_test.js");
             
             var script = test.config.mocha || DEFAULTSCRIPT;
             
