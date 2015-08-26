@@ -10,8 +10,8 @@ var handler = module.exports = Object.create(baseLanguageHandler);
 handler.init = function() {
     // Create a new event handler. 
     handler.sender.on("mocha_outline", function(e) {
-        // code = code.replace(/^(#!.*\n)/, "//$1");
-        var ast = parser.parse(e.data.code);
+        var code = e.data.code.replace(/^(#!.*\n)/, "//$1");
+        var ast = parser.parse(code);
         
         handler.sender.emit("mocha_outline_result", {
             id: e.data.id, // Some unique id for this request
