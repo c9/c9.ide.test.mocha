@@ -431,12 +431,17 @@ define(function(require, exports, module) {
                             }
                         }
                         
-                        output += c;
+                        output += c.replace(/^# (?:tests|pass|fail).*$/mg, "").trimRight();
                     }
                 });
                 pty.on("exit", function(c){
                     // totalTests == testCount
                     currentPty = null;
+                    
+                    if (output) {
+                        lastResultNode.output += output;
+                        output = "";
+                    }
                     
                     if (withCodeCoverage) {
                         fs.readFile(coveragePath + "/lcov.info", function(err, lcovString){
