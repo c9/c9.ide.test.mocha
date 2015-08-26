@@ -98,7 +98,8 @@ define(function(require, exports, module) {
             var script = test.config.mocha || DEFAULTSCRIPT;
             
             proc.spawn("bash", {
-                args: ["-l", "-c", script]
+                args: ["-l", "-c", script],
+                cwd: c9.workspaceDir
             }, function(err, p) {
                 if (err) return callback(err);
                 
