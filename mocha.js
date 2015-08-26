@@ -286,6 +286,9 @@ define(function(require, exports, module) {
                     + (node.type == "test" ? "$" : ""));
             }
             
+            fileNode.ownPassed = null;
+            fileNode.output = "";
+            
             var withCodeCoverage = options && options.withCodeCoverage;
             var withDebug = options && options.debug;
             
@@ -435,15 +438,24 @@ define(function(require, exports, module) {
                     }
                 });
                 pty.on("exit", function(c){
-                    // totalTests == testCount
                     currentPty = null;
                     
                     if (output) {
-                        lastResultNode.output += output;
+                        if (lastResultNode) 
+                            lastResultNode.output += output;
+                        else
+                            fileNode.output = output;
+                            
                         output = "";
                     }
                     
-                    if (withCodeCoverage) {
+                    if (testCount !== totalTests)
+                        bailed = true;
+                    
+                    if (bailed) // TODO clear all tests that were not executed?
+                        fileNode.ownPassed = 2;
+                    
+                    if (withCodeCoverage && !bailed) {
                         fs.readFile(coveragePath + "/lcov.info", function(err, lcovString){
                             if (err) return done(err);
                             
