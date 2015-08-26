@@ -410,12 +410,17 @@ define(function(require, exports, module) {
                                 bailed = true;
                             else {
                                 var stackTrace = parseTrace(c);
-                                if ((stackTrace.message + stackTrace[0].file).indexOf("mocha/lib/runner.js") == -1) {
+                                if (stackTrace) {
                                     if (!withCodeCoverage) {
-                                        if (!lastResultNode.annotations) lastResultNode.annotations = [];
+                                        if (!lastResultNode.annotations) 
+                                            lastResultNode.annotations = [];
+                                        
+                                        var path = join(c9.workspaceDir, fileNode.path);
+                                        var pos = stackTrace.findPath(path);
+                                        
                                         lastResultNode.annotations.push({
-                                            line: stackTrace[0].lineNumber,
-                                            column: stackTrace[0].column,
+                                            line: pos.lineNumber,
+                                            column: pos.column,
                                             message: stackTrace.message
                                         });
                                     }
@@ -491,6 +496,16 @@ define(function(require, exports, module) {
             }
             
             stack.message = message.join(" ");
+            
+            if ((stack.message + stack[0].file).indexOf("mocha/lib/runner.js") > -1)
+                return false;
+            
+            stack.findPath = function(path){
+                for (var i = 0; i < stack.length; i++) {
+                    if (stack[i].file == path)
+                        return stack[i];
+                }
+            };
         
             return stack;
         }
