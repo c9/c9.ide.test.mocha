@@ -265,7 +265,7 @@ define(function(require, exports, module) {
             if (typeof options == "function")
                 callback = options, options = null;
             
-            var fileNode, path, passed = true;
+            var fileNode;
             var exec = "mocha", args = ["--reporter", "tap"];
             
             var allTests = node.findAllNodes("test");
@@ -312,7 +312,8 @@ define(function(require, exports, module) {
                 });
             }
             
-            args.push(join(c9.workspaceDir, fileNode.path));
+            var path = join(c9.workspaceDir, fileNode.path);
+            args.push(path);
             
             var coveragePath = "~/.c9/coverage/run" + (++uniqueId);
             var isWin = c9.platform == "win32";
@@ -441,7 +442,10 @@ define(function(require, exports, module) {
                             done();
                         });
                     }
-                    else done();
+                    else {
+                        node.coverage = null;
+                        done();
+                    }
                     
                     function done(err){
                         // Cleanup for before/after failure
