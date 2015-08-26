@@ -406,7 +406,7 @@ define(function(require, exports, module) {
                                 lastResultNode = getTestNode(fileNode, 1);
                             
                             if (!lastResultNode) 
-                                bailed = true
+                                bailed = true;
                             else {
                                 var stackTrace = parseTrace(c);
                                 if ((stackTrace.message + stackTrace[0].file).indexOf("mocha/lib/runner.js") == -1) {
