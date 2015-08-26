@@ -364,39 +364,33 @@ define(function(require, exports, module) {
                             if (!pass) bailed = true, pass = 2;
                         }
                         
-                        // Set file passed state
-                        if (!pass) passed = false;
-                        
                         // Update Node
-                        var resultNode = node.type == "test"
+                        var resultNode = (node.type == "test"
                             ? node
-                            : getTestNode(node, id, name);
+                            : getTestNode(node, id, name)) 
                         
-                        if (resultNode) {
-                            lastResultNode = resultNode;
-                            
-                            // Set Results
-                            resultNode.output = output;
-                            resultNode.passed = pass;
-                            resultNode.annotations = null;
-                            // resultNode.assertion = {
-                            //     line: 0,
-                            //     col: 10,
-                            //     message: ""
-                            // };
+                        if (!resultNode) 
+                            resultNode = lastResultNode 
+                                || node.findAllNodes("test")[0];
                         
-                            // Reset output
-                            output = "";
-                            
-                            // Count the tests
-                            totalTests++;
-                            
-                            // Update progress
-                            progress.end(resultNode);
-                        }
-                        else {
-                            debugger;
-                        }
+                        if (!resultNode)
+                            return (bailed = true); // TODO test this
+                        
+                        lastResultNode = resultNode;
+                        
+                        // Set Results
+                        resultNode.output = output;
+                        resultNode.passed = pass;
+                        resultNode.annotations = null;
+                    
+                        // Reset output
+                        output = "";
+                        
+                        // Count the tests
+                        totalTests++;
+                        
+                        // Update progress
+                        progress.end(resultNode);
                         
                         if (bailed) return;
                         
@@ -408,22 +402,27 @@ define(function(require, exports, module) {
                     else {
                         // Detect stack trace
                         if (c.match(/^\s+at .*:\d+:\d+\)?$/m)) {
-                            if (!lastResultNode) lastResultNode = getTestNode(fileNode, 1);
+                            if (!lastResultNode) 
+                                lastResultNode = getTestNode(fileNode, 1);
                             
-                            var stackTrace = parseTrace(c);
-                            if ((stackTrace.message + stackTrace[0].file).indexOf("mocha/lib/runner.js") == -1) {
-                                if (!withCodeCoverage) {
-                                    if (!lastResultNode.annotations) lastResultNode.annotations = [];
-                                    lastResultNode.annotations.push({
-                                        line: stackTrace[0].lineNumber,
-                                        column: stackTrace[0].column,
-                                        message: stackTrace.message
-                                    });
+                            if (!lastResultNode) 
+                                bailed = true
+                            else {
+                                var stackTrace = parseTrace(c);
+                                if ((stackTrace.message + stackTrace[0].file).indexOf("mocha/lib/runner.js") == -1) {
+                                    if (!withCodeCoverage) {
+                                        if (!lastResultNode.annotations) lastResultNode.annotations = [];
+                                        lastResultNode.annotations.push({
+                                            line: stackTrace[0].lineNumber,
+                                            column: stackTrace[0].column,
+                                            message: stackTrace.message
+                                        });
+                                    }
+                                    else 
+                                        lastResultNode.output += c;
                                 }
-                                else 
-                                    lastResultNode.output += c;
+                                return;
                             }
-                            return;
                         }
                         
                         output += c;
