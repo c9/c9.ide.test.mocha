@@ -202,6 +202,7 @@ define(function(require, exports, module) {
         function populate(node, callback) {
             node.on("change", function(value){ 
                 updateOutline(node, value); 
+                node.fixParents();
                 return true;
             });
             
@@ -272,11 +273,9 @@ define(function(require, exports, module) {
             var allTests = node.findAllNodes("test");
             var allTestIndex = 0;
             
-            if (!allTests.length) return callback();
-            
             if (node.type == "file") {
                 fileNode = node;
-                progress.start(allTests[allTestIndex]);
+                progress.start(allTests[allTestIndex] || node);
             }
             else {
                 fileNode = node.findFileNode();
