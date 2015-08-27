@@ -405,8 +405,8 @@ define(function(require, exports, module) {
                     else {
                         var stackTrace;
                         
-                        // Detect stack trace
-                        if (c.match(/^\s+at .*:\d+:\d+\)?$/m)) {
+                        // Detect stack trace or timeout
+                        if (c.match(/^\s*Error: timeout/) || c.match(/^\s+at .*:\d+:\d+\)?$/m)) {
                             if (!lastResultNode) {
                                 lastResultNode = fileNode; // getTestNode(fileNode, 1);
                                 fileNode.ownPassed = 2;
@@ -414,8 +414,9 @@ define(function(require, exports, module) {
                                 return;
                             }
                             
-                            if (!lastResultNode) 
-                                bailed = true;
+                            if (c.match(/^\s*Error: timeout/)) {
+                                lastResultNode.output = c;
+                            }
                             else {
                                 stackTrace = parseTrace(c);
                                 if (stackTrace) {
@@ -438,8 +439,8 @@ define(function(require, exports, module) {
                                     else 
                                         lastResultNode.output += c;
                                 }
-                                return;
                             }
+                            return;
                         }
                         
                         output += c.replace(/^# (?:tests|pass|fail).*$/mg, "").trimRight();
