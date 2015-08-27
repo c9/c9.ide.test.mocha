@@ -353,7 +353,7 @@ define(function(require, exports, module) {
                     
                     // Bail
                     else if (c.match(/^Bail out!(.*)$/m)) {
-                        bailed = RegExp.$1;
+                        bailed = 3; // RegExp.$1;
                     }
                     
                     // Update parsed nodes (set, test)
@@ -364,7 +364,7 @@ define(function(require, exports, module) {
                         
                         if (name.match(/"(before all|before each|after all|after each)" hook/, "$1")) {
                             name = name.replace(/"(before all|before each|after all|after each)" hook/, "$1");
-                            if (!pass) bailed = true, pass = 2;
+                            if (!pass) bailed = 2, pass = 2;
                         }
                         
                         // Update Node
@@ -377,7 +377,7 @@ define(function(require, exports, module) {
                                 || node.findAllNodes("test")[0];
                         
                         if (!resultNode)
-                            return (bailed = true); // TODO test this
+                            return (bailed = 2); // TODO test this
                         
                         lastResultNode = resultNode;
                         
@@ -478,11 +478,12 @@ define(function(require, exports, module) {
                         }
                     }
                     
-                    if (testCount !== totalTests)
-                        bailed = true;
-                    
-                    if (bailed) // TODO clear all tests that were not executed?
-                        fileNode.ownPassed = 2;
+                    if (testCount !== totalTests) {
+                        if (!pty.isKilled)
+                            fileNode.ownPassed = 2;
+                    }
+                    else if (bailed || pty.isKilled)
+                        fileNode.ownPassed = pty.isKilled ? 3 : bailed;
                     
                     if (withCodeCoverage && !bailed) {
                         fs.readFile(coveragePath + "/lcov.info", function(err, lcovString){
@@ -557,8 +558,10 @@ define(function(require, exports, module) {
         }
         
         function stop(){
-            if (currentPty)
+            if (currentPty) {
+                currentPty.isKilled = true;
                 currentPty.kill();
+            }
             
             if (debugging)
                 debug.stop();
