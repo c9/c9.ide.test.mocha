@@ -304,7 +304,10 @@ define(function(require, exports, module) {
                     STARTED: 2,
                     runner: {
                         "debugger": "v8",
-                        "debugport": 15455
+                        "debugport": 15455,
+                        "disabled": {
+                            liveUpdate: true
+                        }
                     },
                     running: 2,
                     name: plugin.root.label,
@@ -475,6 +478,7 @@ define(function(require, exports, module) {
                             });
                             fileNode.output = stackTrace.message + "\n" 
                                 + fileNode.path.substr(1) + ":" + lineNumber;
+                            fileNode.ownPassed = 3;
                         }
                     }
                     
