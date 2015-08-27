@@ -427,7 +427,7 @@ define(function(require, exports, module) {
                                         var path = join(c9.workspaceDir, fileNode.path);
                                         var pos = stackTrace.findPath(path);
                                         if (!pos) 
-                                            lastResultNode.ouput += stackTrace.message;
+                                            lastResultNode.output += c;
                                         else {
                                             lastResultNode.annotations.push({
                                                 line: pos.lineNumber,
