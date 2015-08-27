@@ -404,15 +404,21 @@ define(function(require, exports, module) {
                     
                     // Output
                     else {
+                        var stackTrace;
+                        
                         // Detect stack trace
                         if (c.match(/^\s+at .*:\d+:\d+\)?$/m)) {
-                            if (!lastResultNode) 
-                                lastResultNode = getTestNode(fileNode, 1);
+                            if (!lastResultNode) {
+                                lastResultNode = fileNode; // getTestNode(fileNode, 1);
+                                fileNode.ownPassed = 2;
+                                fileNode.output = c;
+                                return;
+                            }
                             
                             if (!lastResultNode) 
                                 bailed = true;
                             else {
-                                var stackTrace = parseTrace(c);
+                                stackTrace = parseTrace(c);
                                 if (stackTrace) {
                                     if (!withCodeCoverage) {
                                         if (!lastResultNode.annotations) 
@@ -420,12 +426,15 @@ define(function(require, exports, module) {
                                         
                                         var path = join(c9.workspaceDir, fileNode.path);
                                         var pos = stackTrace.findPath(path);
-                                        
-                                        lastResultNode.annotations.push({
-                                            line: pos.lineNumber,
-                                            column: pos.column,
-                                            message: stackTrace.message
-                                        });
+                                        if (!pos) 
+                                            lastResultNode.ouput += stackTrace.message;
+                                        else {
+                                            lastResultNode.annotations.push({
+                                                line: pos.lineNumber,
+                                                column: pos.column,
+                                                message: stackTrace.message
+                                            });
+                                        }
                                     }
                                     else 
                                         lastResultNode.output += c;
@@ -447,6 +456,26 @@ define(function(require, exports, module) {
                             fileNode.output = output;
                             
                         output = "";
+                    }
+                    
+                    // Special Case for Syntax Errors
+                    if (fileNode.output.indexOf("SyntaxError:") > -1) {
+                        var stackTrace = parseTrace(fileNode.output);
+                        var rePath = new RegExp(util.escapeRegExp(fileNode.path) + ":(\\d+)");
+                        fileNode.output.match(rePath);
+                        if (RegExp.$1) {
+                            if (!fileNode.annotations) 
+                                fileNode.annotations = [];
+                            
+                            var lineNumber = parseInt(RegExp.$1);
+                            fileNode.annotations.push({
+                                line: lineNumber,
+                                column: 0,
+                                message: stackTrace.message
+                            });
+                            fileNode.output = stackTrace.message + "\n" 
+                                + fileNode.path.substr(1) + ":" + lineNumber;
+                        }
                     }
                     
                     if (testCount !== totalTests)
