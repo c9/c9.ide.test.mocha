@@ -574,6 +574,14 @@ define(function(require, exports, module) {
                 debug.stop();
         }
         
+        var reStack = /([\w-_\.]+):(\d+)(?::(\d+))?/g;
+        function parseLinks(strOutput){
+            return strOutput.replace(reStack, function(m, name, l, c){ 
+                var link = "/classes/" + name + ".cls:" + l + ":" + c;
+                return "<span class='link' link='" + link + "'>" + m + "</span>";
+            });
+        }
+        
         /***** Lifecycle *****/
         
         plugin.on("load", function() {
