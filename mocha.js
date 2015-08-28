@@ -94,7 +94,7 @@ define(function(require, exports, module) {
         /***** Methods *****/
         
         function fetch(callback) {
-            return callback(null, "configs/client-config_test.js\nplugins/c9.api/quota_test.js\nplugins/c9.api/settings_test.js\nplugins/c9.api/sitemap-writer_test.js\nplugins/c9.api/stats_test.js\nplugins/c9.api/vfs_test.js\nplugins/c9.cli.publish/publish_test.js\nplugins/c9.analytics/analytics_test.js\nplugins/c9.api/base_test.js\nplugins/c9.api/collab_test.js\nplugins/c9.api/docker_test.js\nplugins/c9.api/package_test.js");
+            // return callback(null, "configs/client-config_test.js\nplugins/c9.api/quota_test.js\nplugins/c9.api/settings_test.js\nplugins/c9.api/sitemap-writer_test.js\nplugins/c9.api/stats_test.js\nplugins/c9.api/vfs_test.js\nplugins/c9.cli.publish/publish_test.js\nplugins/c9.analytics/analytics_test.js\nplugins/c9.api/base_test.js\nplugins/c9.api/collab_test.js\nplugins/c9.api/docker_test.js\nplugins/c9.api/package_test.js");
             // return callback(null, "classes/Twilio_TestAccounts.cls\nclasses/Twilio_TestApplication.cls\nclasses/Twilio_TestCalls.cls\nclasses/Twilio_TestCapability.cls\nclasses/Twilio_TestConference.cls\nclasses/Twilio_TestConnectApps.cls\nclasses/Twilio_TestMedia.cls\nclasses/Twilio_TestMember.cls\nclasses/Twilio_TestMessage.cls\nclasses/Twilio_TestNotification.cls\nclasses/Twilio_TestPhoneNumbers.cls\nclasses/Twilio_TestQueue.cls\nclasses/Twilio_TestRecording.cls\nclasses/Twilio_TestRest.cls\nclasses/Twilio_TestSandbox.cls\nclasses/Twilio_TestSms.cls\nclasses/Twilio_TestTwiML.cls");
             
             var script = test.config.mocha || DEFAULTSCRIPT;
@@ -160,6 +160,15 @@ define(function(require, exports, module) {
                             path: "/" + name
                         });
                         
+                        // Update file
+                        file.on("change", function(e){ 
+                            if (file.items.length) 
+                                updateOutline(file, e.value); 
+                                
+                            e.run(); // Run file
+                            return true;
+                        });
+                        
                         items.push(file);
                         lookup[name] = file;
                     });
@@ -202,13 +211,6 @@ define(function(require, exports, module) {
         }
         
         function populate(node, callback) {
-            node.on("change", function(e){ 
-                updateOutline(node, e.value); 
-                e.run(); // Run file
-                
-                return true;
-            });
-            
             fs.readFile(node.path, function(err, contents){
                 if (err) return callback(err);
                 
@@ -576,10 +578,13 @@ define(function(require, exports, module) {
                 debug.stop();
         }
         
-        var reStack = /([\w-_\.]+):(\d+)(?::(\d+))?/g;
+        var reStack = /([\\\/\w-_\.]+):(\d+)(?::(\d+))?/g;
         function parseLinks(strOutput){
             return strOutput.replace(reStack, function(m, name, l, c){ 
-                var link = "/classes/" + name + ".cls:" + l + ":" + c;
+                name = name.replace(c9.workspaceDir, "");
+                if (name.charAt(0) != "/") name = "/" + name;
+                
+                var link = name + ":" + (l - 1) + (c ? ":" + c : "");
                 return "<span class='link' link='" + link + "'>" + m + "</span>";
             });
         }
@@ -610,6 +615,11 @@ define(function(require, exports, module) {
              * 
              */
             get update(){ return update },
+            
+            /**
+             * 
+             */
+            parseLinks: parseLinks,
             
             /**
              * 
