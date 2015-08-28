@@ -465,7 +465,8 @@ define(function(require, exports, module) {
                     // Special Case for Syntax Errors
                     if (fileNode.output.indexOf("SyntaxError:") > -1) {
                         var stackTrace = parseTrace(fileNode.output);
-                        var rePath = new RegExp(util.escapeRegExp(fileNode.path) + ":(\\d+)");
+                        var filepath = isWin ? fileNode.path.replace(/\//g, "\\") : fileNode.path;
+                        var rePath = new RegExp(util.escapeRegExp(filepath) + ":(\\d+)");
                         fileNode.output.match(rePath);
                         if (RegExp.$1) {
                             if (!fileNode.annotations) 
