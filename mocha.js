@@ -23,6 +23,7 @@ define(function(require, exports, module) {
         var File = test.File;
         
         var dirname = require("path").dirname;
+        var basename = require("path").basename;
         var join = require("path").join;
         
         /***** Initialization *****/
@@ -93,7 +94,7 @@ define(function(require, exports, module) {
         /***** Methods *****/
         
         function fetch(callback) {
-            return callback(null, "configs/client-config_test.js\nplugins/c9.api/quota_test.js\nplugins/c9.api/settings_test.js\nplugins/c9.api/sitemap-writer_test.js\nplugins/c9.api/stats_test.js\nplugins/c9.api/vfs_test.js\nplugins/c9.cli.publish/publish_test.js\nplugins/c9.analytics/analytics_test.js\nplugins/c9.api/base_test.js\nplugins/c9.api/collab_test.js\nplugins/c9.api/docker_test.js\nplugins/c9.api/package_test.js");
+            // return callback(null, "configs/client-config_test.js\nplugins/c9.api/quota_test.js\nplugins/c9.api/settings_test.js\nplugins/c9.api/sitemap-writer_test.js\nplugins/c9.api/stats_test.js\nplugins/c9.api/vfs_test.js\nplugins/c9.cli.publish/publish_test.js\nplugins/c9.analytics/analytics_test.js\nplugins/c9.api/base_test.js\nplugins/c9.api/collab_test.js\nplugins/c9.api/docker_test.js\nplugins/c9.api/package_test.js");
             
             var script = test.config.mocha || DEFAULTSCRIPT;
             
@@ -551,11 +552,12 @@ define(function(require, exports, module) {
             if ((stack.message + stack[0].file).indexOf("mocha/lib/runner.js") > -1)
                 return false;
             
-            stack.findPath = function(path){
+            stack.findPath = function(path, isFilename){
                 for (var i = 0; i < stack.length; i++) {
                     if (stack[i].file == path)
                         return stack[i];
                 }
+                return isFilename ? false : this.findPath(basename(path, true));
             };
         
             return stack;
