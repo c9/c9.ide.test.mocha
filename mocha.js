@@ -202,16 +202,17 @@ define(function(require, exports, module) {
         }
         
         function populate(node, callback) {
-            node.on("change", function(value){ 
-                updateOutline(node, value); 
-                node.fixParents();
+            node.on("change", function(e){ 
+                updateOutline(node, e.value); 
+                e.run(); // Run file
+                
                 return true;
             });
             
             fs.readFile(node.path, function(err, contents){
                 if (err) return callback(err);
                 
-                updateOutline(node, contents, callback)
+                updateOutline(node, contents, callback);
             });
         }
         
