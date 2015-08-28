@@ -475,7 +475,7 @@ define(function(require, exports, module) {
                             fileNode.annotations.push({
                                 line: lineNumber,
                                 column: 0,
-                                message: stackTrace.message
+                                message: "SyntaxError:" + stackTrace.message.split("SyntaxError:")[1]
                             });
                             fileNode.output = stackTrace.message + "\n" 
                                 + fileNode.path.substr(1) + ":" + lineNumber;
@@ -547,7 +547,7 @@ define(function(require, exports, module) {
                 }
             }
             
-            stack.message = message.join(" ");
+            stack.message = message.join("\n");
             
             if ((stack.message + stack[0].file).indexOf("mocha/lib/runner.js") > -1)
                 return false;
@@ -557,7 +557,7 @@ define(function(require, exports, module) {
                     if (stack[i].file == path)
                         return stack[i];
                 }
-                return isFilename ? false : this.findPath(basename(path, true));
+                return isFilename ? false : this.findPath(basename(path), true);
             };
         
             return stack;
