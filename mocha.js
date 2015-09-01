@@ -52,6 +52,8 @@ define(function(require, exports, module) {
         var update, debugging;
         
         function load() {
+            if (test.inactive)
+                return;
             prefs.add({
                 "Test" : {
                     position: 1000,
@@ -98,6 +100,9 @@ define(function(require, exports, module) {
             // return callback(null, "classes/Twilio_TestAccounts.cls\nclasses/Twilio_TestApplication.cls\nclasses/Twilio_TestCalls.cls\nclasses/Twilio_TestCapability.cls\nclasses/Twilio_TestConference.cls\nclasses/Twilio_TestConnectApps.cls\nclasses/Twilio_TestMedia.cls\nclasses/Twilio_TestMember.cls\nclasses/Twilio_TestMessage.cls\nclasses/Twilio_TestNotification.cls\nclasses/Twilio_TestPhoneNumbers.cls\nclasses/Twilio_TestQueue.cls\nclasses/Twilio_TestRecording.cls\nclasses/Twilio_TestRest.cls\nclasses/Twilio_TestSandbox.cls\nclasses/Twilio_TestSms.cls\nclasses/Twilio_TestTwiML.cls");
             
             var script = test.config.mocha || DEFAULTSCRIPT;
+            
+            if (c9.platform == "win32" && /grep/.test(script))
+                return callback(null, ""); // TODO DEFAULTSCRIPT is broken on windows
             
             proc.spawn("bash", {
                 args: ["-l", "-c", script],
