@@ -160,22 +160,7 @@ define(function(require, exports, module) {
                             return;
                         }
                         
-                        var file = new File({
-                            label: name,
-                            path: "/" + name
-                        });
-                        
-                        // Update file
-                        file.on("change", function(e){ 
-                            if (file.items.length) 
-                                updateOutline(file, e.value); 
-                                
-                            e.run(); // Run file
-                            return true;
-                        });
-                        
-                        items.push(file);
-                        lookup[name] = file;
+                        createFile(name, items);
                     });
                     
                     plugin.root.items = items;
@@ -226,6 +211,8 @@ define(function(require, exports, module) {
         var wid = 0;
         function updateOutline(node, contents, callback) {
             language.getWorker(function(err, worker) {
+                if (err) return console.error(err);
+                
                 worker.emit("mocha_outline", { data: { id: ++wid, code: contents } });
                 worker.on("mocha_outline_result", function onResponse(e) {
                     if (e.data.id !== wid) return;
@@ -385,12 +372,19 @@ define(function(require, exports, module) {
                             ? node
                             : getTestNode(node, id, name)) 
                         
-                        if (!resultNode) 
-                            resultNode = lastResultNode 
-                                || node.findAllNodes("test")[0];
+                        if (!resultNode) {
+                            resultNode = fileNode.addTest({
+                                label: name, // TODO
+                                type: "test"
+                            });
+                        }
                         
-                        if (!resultNode)
-                            return (bailed = 2); // TODO test this
+                        // if (!resultNode) 
+                        //     resultNode = lastResultNode 
+                        //         || node.findAllNodes("test")[0];
+                        
+                        // if (!resultNode)
+                        //     return (bailed = 2); // TODO test this
                         
                         lastResultNode = resultNode;
                         
@@ -594,6 +588,45 @@ define(function(require, exports, module) {
             });
         }
         
+        function createFile(name, items){
+            var file = new File({
+                label: name,
+                path: "/" + name
+            });
+            
+            items.push(file);
+            lookup[name] = file;
+            
+            return file;
+        }
+        
+        function findFileByPath(path) {
+            var found = false;
+            plugin.root.findAllNodes("file").some(function(n){
+                if (n.path == path) {
+                    found = n;
+                    return true;
+                }
+            });
+            return found;
+        }
+        
+        function fileChange(options){
+            // Update file
+            var fileNode = findFileByPath(options.path);
+            if (!fileNode)
+                fileNode = createFile(options.path.substr(1), plugin.root.items);
+            
+            if (fileNode.items.length) 
+                updateOutline(fileNode, options.value); 
+                
+            options.run(fileNode); // Run file
+        }
+        
+        function isTest(path, value){
+            
+        }
+        
         /***** Lifecycle *****/
         
         plugin.on("load", function() {
@@ -625,6 +658,16 @@ define(function(require, exports, module) {
              * 
              */
             parseLinks: parseLinks,
+            
+            /**
+             * 
+             */
+            isTest: isTest,
+            
+            /**
+             * 
+             */
+            fileChange: fileChange,
             
             /**
              * 
