@@ -274,6 +274,10 @@ define(function(require, exports, module) {
                     else {
                         var stackTrace;
                         
+                        c = c.replace(/([\n\r]|^)# (?:tests|pass|fail).*[\n\r]/g, "").replace(/[ \t]+$/, "");
+                        
+                        if (c.match(/^\s+at .*:\d+:\d+\)?$/m)) debugger;
+                        
                         // Detect stack trace or timeout
                         if (c.match(/^\s*Error: timeout/) || c.match(/^\s+at .*:\d+:\d+\)?$/m)) {
                             if (!lastResultNode) {
@@ -296,12 +300,12 @@ define(function(require, exports, module) {
                                         var path = join(c9.workspaceDir, fileNode.path);
                                         var pos = stackTrace.findPath(path);
                                         if (!pos) 
-                                            lastResultNode.output += c;
+                                            output += c;
                                         else {
                                             lastResultNode.annotations.push({
                                                 line: pos.lineNumber,
                                                 column: pos.column,
-                                                message: stackTrace.message
+                                                message: c.trim().replace(/^\s+at/mg, "  at") //stackTrace.message
                                             });
                                         }
                                     }
@@ -312,7 +316,7 @@ define(function(require, exports, module) {
                             return;
                         }
                         
-                        output += c.replace(/^# (?:tests|pass|fail).*$/mg, "").trimRight();
+                        output += c;
                     }
                 });
                 pty.on("exit", function(c){
