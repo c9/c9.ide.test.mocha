@@ -1,15 +1,12 @@
 define(function(require, exports, module) {
     main.consumes = [
-        "TestRunner", "settings", "preferences", "proc", "util", "fs", "test",
-        "watcher", "language", "c9", "debugger"
+        "TestRunner", "proc", "util", "fs", "test", "language", "c9", "debugger"
     ];
     main.provides = ["test.mocha"];
     return main;
 
     function main(options, imports, register) {
         var TestRunner = imports.TestRunner;
-        // var settings = imports.settings;
-        var prefs = imports.preferences;
         var proc = imports.proc;
         var util = imports.util;
         var test = imports.test;
@@ -17,10 +14,8 @@ define(function(require, exports, module) {
         var c9 = imports.c9;
         var language = imports.language;
         var debug = imports["debugger"];
-        var watcher = imports.watcher;
         
         var Coverage = test.Coverage;
-        var File = test.File;
         
         var dirname = require("path").dirname;
         var basename = require("path").basename;
@@ -30,6 +25,21 @@ define(function(require, exports, module) {
         
         var plugin = new TestRunner("Ajax.org", main.consumes, {
             caption: "Mocha Javascript Tests",
+            query: {
+                id: "mocha",
+                label: "Mocha Test Runner",
+                def: {
+                    match: {
+                        content: ["^\\s*describe\\("],
+                        filename: [".js$"]
+                    },
+                    exclude: {
+                        dir: ["node_modules"],
+                        file: []
+                    },
+                    search: "*"
+                }
+            },
             options: [
                 {
                     title: "Enable Debugger",
@@ -41,164 +51,16 @@ define(function(require, exports, module) {
         });
         // var emit = plugin.getEmitter();
         
-        var DEFAULTSCRIPT = "grep -lsR -E '^\\s*describe\\(' --exclude-dir node_modules * | grep .js$";
-        
-        // TODO: Implement the pure find files with pattern feature in nak
-        // grep -ls -E "^\\s*describe\\(" * -R --exclude-dir node_modules
-        
-        var lastList = "";
-        var lookup = {};
         var currentPty;
-        var update, debugging;
+        var debugging;
         
         function load() {
             if (test.inactive)
                 return;
-            prefs.add({
-                "Test" : {
-                    position: 1000,
-                    "Mocha Test Runner" : {
-                        position: 1000,
-                        "Script To Fetch All Test Files In The Workspace" : {
-                           name: "txtTestMocha",
-                           type: "textarea-row",
-                           fixedFont: true,
-                           width: 600,
-                           height: 200,
-                           rowheight: 250,
-                           position: 1000
-                       },
-                    }
-                }
-            }, plugin);
             
-            plugin.getElement("txtTestMocha", function(txtTestMocha) {
-                var ta = txtTestMocha.lastChild;
-                
-                ta.on("blur", function(e) {
-                    if (test.config.mocha == ta.value) return;
-                    
-                    test.config.mocha = ta.value;
-                    test.saveConfig(function(){
-                        update();
-                    });
-                });
-                
-                test.on("ready", function(){
-                    ta.setValue(test.config.mocha || DEFAULTSCRIPT);
-                }, plugin);
-                test.on("updateConfig", function(){
-                    ta.setValue(test.config.mocha || DEFAULTSCRIPT);
-                }, plugin);
-            }, plugin);
         }
         
         /***** Methods *****/
-        
-        function fetch(callback) {
-            // return callback(null, "configs/client-config_test.js\nplugins/c9.api/quota_test.js\nplugins/c9.api/settings_test.js\nplugins/c9.api/sitemap-writer_test.js\nplugins/c9.api/stats_test.js\nplugins/c9.api/vfs_test.js\nplugins/c9.cli.publish/publish_test.js\nplugins/c9.analytics/analytics_test.js\nplugins/c9.api/base_test.js\nplugins/c9.api/collab_test.js\nplugins/c9.api/docker_test.js\nplugins/c9.api/package_test.js");
-            // return callback(null, "classes/Twilio_TestAccounts.cls\nclasses/Twilio_TestApplication.cls\nclasses/Twilio_TestCalls.cls\nclasses/Twilio_TestCapability.cls\nclasses/Twilio_TestConference.cls\nclasses/Twilio_TestConnectApps.cls\nclasses/Twilio_TestMedia.cls\nclasses/Twilio_TestMember.cls\nclasses/Twilio_TestMessage.cls\nclasses/Twilio_TestNotification.cls\nclasses/Twilio_TestPhoneNumbers.cls\nclasses/Twilio_TestQueue.cls\nclasses/Twilio_TestRecording.cls\nclasses/Twilio_TestRest.cls\nclasses/Twilio_TestSandbox.cls\nclasses/Twilio_TestSms.cls\nclasses/Twilio_TestTwiML.cls");
-            
-            var script = test.config.mocha || DEFAULTSCRIPT;
-            
-            if (c9.platform == "win32" && /grep/.test(script))
-                return callback(null, ""); // TODO DEFAULTSCRIPT is broken on windows
-            
-            proc.spawn("bash", {
-                args: ["-l", "-c", script],
-                cwd: c9.workspaceDir
-            }, function(err, p) {
-                if (err) return callback(err);
-                
-                var stdout = "", stderr = "";
-                p.stdout.on("data", function(c){
-                    stdout += c;
-                });
-                p.stderr.on("data", function(c){
-                    stderr += c;
-                });
-                p.on("exit", function(){
-                    lastList = stdout;
-                    callback(null, stdout);
-                });
-                
-            });
-        }
-        
-        function init(filter, callback) {
-            /* 
-                Set hooks to update list
-                - Strategies:
-                    - Periodically
-                    * Based on fs/watcher events
-                    - Based on opening the test panel
-                    - Refresh button
-                
-                Do initial populate
-            */
-            
-            var isUpdating;
-            update = function(){
-                if (isUpdating) return fsUpdate(null, 10000);
-                
-                isUpdating = true;
-                fetch(function(err, list){
-                    isUpdating = false;
-                    
-                    if (err) return callback(err);
-                    
-                    var items = [];
-                    var lastLookup = lookup;
-                    lookup = {};
-                    
-                    list.split("\n").forEach(function(name){
-                        if (!name || filter("/" + name)) return;
-                        
-                        if (lastLookup[name]) {
-                            items.push(lookup[name] = lastLookup[name]);
-                            delete lastLookup[name];
-                            return;
-                        }
-                        
-                        createFile(name, items);
-                    });
-                    
-                    plugin.root.items = items;
-                    
-                    callback(null, items);
-                });
-            }
-            
-            var timer;
-            function fsUpdate(e, time){
-                clearTimeout(timer);
-                timer = setTimeout(update, time || 1000);
-            }
-            
-            function fsUpdateCheck(e){
-                var reTest = new RegExp("^" + util.escapeRegExp(e.path) + "$", "m");
-                
-                if (lastList.match(reTest))
-                    fsUpdate();
-            }
-            
-            fs.on("afterWriteFile", fsUpdate);
-            fs.on("afterUnlink", fsUpdateCheck);
-            fs.on("afterRmfile", fsUpdateCheck);
-            fs.on("afterRmdir", fsUpdateCheck);
-            fs.on("afterCopy", fsUpdateCheck);
-            fs.on("afterRename", fsUpdateCheck);
-            
-            // Or when a watcher fires
-            watcher.on("delete", fsUpdateCheck);
-            watcher.on("directory", fsUpdate);
-            
-            // Hook into the language
-            language.registerLanguageHandler("plugins/c9.ide.test.mocha/mocha_outline_worker");
-            
-            // Initial Fetch
-            update();
-        }
         
         function populate(node, callback) {
             fs.readFile(node.path, function(err, contents){
@@ -278,7 +140,7 @@ define(function(require, exports, module) {
                 fileNode = node.findFileNode();
                 progress.start(node.type == "test" ? node : allTests[allTestIndex]);
                 
-                args.push("--grep", util.escapeRegExp(getFullTestName(node))  //"^" + 
+                args.push("--grep", util.escapeRegExp(getFullTestName(node))  // "^" + 
                     + (node.type == "test" ? "$" : ""));
             }
             
@@ -370,7 +232,7 @@ define(function(require, exports, module) {
                         // Update Node
                         var resultNode = (node.type == "test"
                             ? node
-                            : getTestNode(node, id, name)) 
+                            : getTestNode(node, id, name)); 
                         
                         if (!resultNode) {
                             resultNode = fileNode.addTest({
@@ -404,7 +266,7 @@ define(function(require, exports, module) {
                         
                         if (bailed) return;
                         
-                        var nextTest = allTests[++allTestIndex]; //findNextTest(resultNode);
+                        var nextTest = allTests[++allTestIndex]; // findNextTest(resultNode);
                         if (nextTest) progress.start(nextTest);
                     }
                     
@@ -588,18 +450,6 @@ define(function(require, exports, module) {
             });
         }
         
-        function createFile(name, items){
-            var file = new File({
-                label: name,
-                path: "/" + name
-            });
-            
-            items.push(file);
-            lookup[name] = file;
-            
-            return file;
-        }
-        
         function findFileByPath(path) {
             var found = false;
             plugin.root.findAllNodes("file").some(function(n){
@@ -615,25 +465,26 @@ define(function(require, exports, module) {
             // Update file
             var fileNode = findFileByPath(options.path);
             if (!fileNode)
-                fileNode = createFile(options.path.substr(1), plugin.root.items);
+                fileNode = plugin.createFile(options.path.substr(1));
             
-            if (fileNode.items.length) 
+            if (fileNode.items.length)
                 updateOutline(fileNode, options.value); 
                 
             options.run(fileNode); // Run file
         }
         
-        function isTest(path, value){
-            
-        }
-        
         /***** Lifecycle *****/
         
+        plugin.on("init", function() {
+            // Hook into the language worker
+            language.registerLanguageHandler("plugins/c9.ide.test.mocha/mocha_outline_worker");
+        });
         plugin.on("load", function() {
             load();
         });
         plugin.on("unload", function() {
-            
+            currentPty = null;
+            debugging = null;
         });
         
         /***** Register and define API *****/
@@ -642,27 +493,12 @@ define(function(require, exports, module) {
             /**
              * 
              */
-            init: init,
-            
-            /**
-             * 
-             */
             populate: populate,
             
             /**
              * 
              */
-            get update(){ return update },
-            
-            /**
-             * 
-             */
             parseLinks: parseLinks,
-            
-            /**
-             * 
-             */
-            isTest: isTest,
             
             /**
              * 
