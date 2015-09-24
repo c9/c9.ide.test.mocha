@@ -95,12 +95,9 @@ define(function(require, exports, module) {
         
         /***** Methods *****/
         
-        function fetch(cache, callback) {
+        function fetch(callback) {
             // return callback(null, "configs/client-config_test.js\nplugins/c9.api/quota_test.js\nplugins/c9.api/settings_test.js\nplugins/c9.api/sitemap-writer_test.js\nplugins/c9.api/stats_test.js\nplugins/c9.api/vfs_test.js\nplugins/c9.cli.publish/publish_test.js\nplugins/c9.analytics/analytics_test.js\nplugins/c9.api/base_test.js\nplugins/c9.api/collab_test.js\nplugins/c9.api/docker_test.js\nplugins/c9.api/package_test.js");
             // return callback(null, "classes/Twilio_TestAccounts.cls\nclasses/Twilio_TestApplication.cls\nclasses/Twilio_TestCalls.cls\nclasses/Twilio_TestCapability.cls\nclasses/Twilio_TestConference.cls\nclasses/Twilio_TestConnectApps.cls\nclasses/Twilio_TestMedia.cls\nclasses/Twilio_TestMember.cls\nclasses/Twilio_TestMessage.cls\nclasses/Twilio_TestNotification.cls\nclasses/Twilio_TestPhoneNumbers.cls\nclasses/Twilio_TestQueue.cls\nclasses/Twilio_TestRecording.cls\nclasses/Twilio_TestRest.cls\nclasses/Twilio_TestSandbox.cls\nclasses/Twilio_TestSms.cls\nclasses/Twilio_TestTwiML.cls");
-            
-            if (cache) 
-                return callback(null, cache);
             
             var script = test.config.mocha || DEFAULTSCRIPT;
             
@@ -128,7 +125,7 @@ define(function(require, exports, module) {
             });
         }
         
-        function init(filter, cache, callback) {
+        function init(filter, callback) {
             /* 
                 Set hooks to update list
                 - Strategies:
@@ -141,11 +138,11 @@ define(function(require, exports, module) {
             */
             
             var isUpdating;
-            update = function(cache){
+            update = function(){
                 if (isUpdating) return fsUpdate(null, 10000);
                 
                 isUpdating = true;
-                fetch(cache, function(err, list){
+                fetch(function(err, list){
                     isUpdating = false;
                     
                     if (err) return callback(err);
@@ -163,22 +160,7 @@ define(function(require, exports, module) {
                             return;
                         }
                         
-                        var file = new File({
-                            label: name,
-                            path: "/" + name
-                        });
-                        
-                        // Update file
-                        file.on("change", function(e){ 
-                            if (file.items.length) 
-                                updateOutline(file, e.value); 
-                                
-                            e.run(); // Run file
-                            return true;
-                        });
-                        
-                        items.push(file);
-                        lookup[name] = file;
+                        createFile(name, items);
                     });
                     
                     plugin.root.items = items;
@@ -215,7 +197,7 @@ define(function(require, exports, module) {
             language.registerLanguageHandler("plugins/c9.ide.test.mocha/mocha_outline_worker");
             
             // Initial Fetch
-            update(cache);
+            update();
         }
         
         function populate(node, callback) {
@@ -606,6 +588,45 @@ define(function(require, exports, module) {
             });
         }
         
+        function createFile(name, items){
+            var file = new File({
+                label: name,
+                path: "/" + name
+            });
+            
+            items.push(file);
+            lookup[name] = file;
+            
+            return file;
+        }
+        
+        function findFileByPath(path) {
+            var found = false;
+            plugin.root.findAllNodes("file").some(function(n){
+                if (n.path == path) {
+                    found = n;
+                    return true;
+                }
+            });
+            return found;
+        }
+        
+        function fileChange(options){
+            // Update file
+            var fileNode = findFileByPath(options.path);
+            if (!fileNode)
+                fileNode = createFile(options.path.substr(1), plugin.root.items);
+            
+            if (fileNode.items.length) 
+                updateOutline(fileNode, options.value); 
+                
+            options.run(fileNode); // Run file
+        }
+        
+        function isTest(path, value){
+            
+        }
+        
         /***** Lifecycle *****/
         
         plugin.on("load", function() {
@@ -637,6 +658,16 @@ define(function(require, exports, module) {
              * 
              */
             parseLinks: parseLinks,
+            
+            /**
+             * 
+             */
+            isTest: isTest,
+            
+            /**
+             * 
+             */
+            fileChange: fileChange,
             
             /**
              * 
