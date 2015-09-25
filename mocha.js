@@ -234,6 +234,7 @@ define(function(require, exports, module) {
                             ? node
                             : getTestNode(node, id, name)); 
                         
+                        // I suspect this is no longer needed
                         if (!resultNode) {
                             resultNode = fileNode.addTest({
                                 label: name, // TODO
