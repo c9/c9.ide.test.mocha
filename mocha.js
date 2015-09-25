@@ -440,6 +440,7 @@ define(function(require, exports, module) {
                 pty.isKilled = true;
                 pty.kill();
             });
+            currentPty = [];
             
             if (debugging)
                 debug.stop();
