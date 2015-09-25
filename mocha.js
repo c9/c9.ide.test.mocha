@@ -51,7 +51,7 @@ define(function(require, exports, module) {
         });
         // var emit = plugin.getEmitter();
         
-        var currentPty;
+        var currentPty = [];
         var debugging;
         
         function load() {
@@ -75,9 +75,11 @@ define(function(require, exports, module) {
             language.getWorker(function(err, worker) {
                 if (err) return callback && callback(err) || console.error(err);
                 
-                worker.emit("mocha_outline", { data: { id: ++wid, code: contents } });
+                var currentId = ++wid;
+                worker.emit("mocha_outline", { data: { id: currentId, code: contents } });
                 worker.on("mocha_outline_result", function onResponse(e) {
-                    if (e.data.id !== wid) return;
+                    if (e.data.id !== currentId) return;
+                    
                     worker.off("mocha_outline_result", onResponse);
                     
                     node.importItems(e.data.result);
@@ -149,8 +151,9 @@ define(function(require, exports, module) {
             
             var withCodeCoverage = options && options.withCodeCoverage;
             var withDebug = options && options.debug;
+            var parallel = options && options.parallel;
             
-            if (!withCodeCoverage && withDebug) {
+            if (!withCodeCoverage && !parallel && withDebug) {
                 // "${debug?--nocrankshaft}",
                 // "${debug?--nolazy}",
                 // "${debug?`node --version | grep -vqE \"v0\\..\\.\" && echo --nodead_code_elimination`}",
@@ -200,7 +203,7 @@ define(function(require, exports, module) {
             }, function(err, pty){
                 if (err) return callback(err);
                 
-                currentPty = pty;
+                var ptyId = currentPty.push(pty);
                 
                 var lastResultNode, testCount, bailed;
                 var output = "", totalTests = 0;
@@ -319,7 +322,7 @@ define(function(require, exports, module) {
                     }
                 });
                 pty.on("exit", function(c){
-                    currentPty = null;
+                    delete currentPty[ptyId];
                     
                     if (output) {
                         if (lastResultNode) 
@@ -433,10 +436,10 @@ define(function(require, exports, module) {
         }
         
         function stop(){
-            if (currentPty) {
-                currentPty.isKilled = true;
-                currentPty.kill();
-            }
+            currentPty.forEach(function(pty){
+                pty.isKilled = true;
+                pty.kill();
+            });
             
             if (debugging)
                 debug.stop();
