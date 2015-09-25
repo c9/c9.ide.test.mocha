@@ -73,7 +73,7 @@ define(function(require, exports, module) {
         var wid = 0;
         function updateOutline(node, contents, callback) {
             language.getWorker(function(err, worker) {
-                if (err) return console.error(err);
+                if (err) return callback && callback(err) || console.error(err);
                 
                 worker.emit("mocha_outline", { data: { id: ++wid, code: contents } });
                 worker.on("mocha_outline_result", function onResponse(e) {
@@ -276,8 +276,6 @@ define(function(require, exports, module) {
                         
                         c = c.replace(/([\n\r]|^)# (?:tests|pass|fail).*[\n\r]/g, "").replace(/[ \t]+$/, "");
                         
-                        if (c.match(/^\s+at .*:\d+:\d+\)?$/m)) debugger;
-                        
                         // Detect stack trace or timeout
                         if (c.match(/^\s*Error: timeout/) || c.match(/^\s+at .*:\d+:\d+\)?$/m)) {
                             if (!lastResultNode) {
@@ -468,22 +466,26 @@ define(function(require, exports, module) {
         function fileChange(options){
             // Update file
             var fileNode = findFileByPath(options.path);
-            if (!fileNode)
+            if (!fileNode) {
                 fileNode = plugin.createFile(options.path.substr(1));
+                fileNode.runner = plugin;
+            }
             
-            if (fileNode.items.length)
-                updateOutline(fileNode, options.value); 
-                
-            options.run(fileNode); // Run file
+            if (fileNode.items.length || options.runonsave)
+                updateOutline(fileNode, options.value, function(){
+                    options.run(fileNode); // Run file
+                });
         }
         
         /***** Lifecycle *****/
         
         plugin.on("init", function() {
-            // Hook into the language worker
-            language.registerLanguageHandler("plugins/c9.ide.test.mocha/mocha_outline_worker");
+            
         });
         plugin.on("load", function() {
+            // Hook into the language worker
+            language.registerLanguageHandler("plugins/c9.ide.test.mocha/mocha_outline_worker");
+            
             load();
         });
         plugin.on("unload", function() {
