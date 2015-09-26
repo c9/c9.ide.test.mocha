@@ -40,6 +40,9 @@ define(function(require, exports, module) {
                     search: "*"
                 }
             },
+            getName: function(name){
+                return name.substr(1);
+            },
             options: [
                 {
                     title: "Enable Debugger",
