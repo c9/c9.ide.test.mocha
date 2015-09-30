@@ -259,6 +259,11 @@ define(function(require, exports, module) {
                             testCount = parseInt(RegExp.$2, 10);
                         }
                         
+                        // Final Statements
+                        else if (line.match(/^# (?:tests|pass|fail)/)) {
+                            continue;
+                        }
+                        
                         // Bail
                         else if (line.match(/^Bail out!(.*)$/m)) {
                             bailed = 3; // RegExp.$1;
@@ -313,7 +318,7 @@ define(function(require, exports, module) {
                         lastResultNode = resultNode;
                         
                         // Set Results
-                        resultNode.output = output;
+                        resultNode.output = output + "\n";
                         resultNode.passed = pass;
                         resultNode.annotations = null;
                     
@@ -326,6 +331,8 @@ define(function(require, exports, module) {
                         // Update progress
                         progress.end(resultNode);
                         
+                        c = c.replace(/^.*([\r\n]+|$)/, "");
+                        
                         if (bailed) return;
                         
                         var nextTest = allTests[++allTestIndex]; // findNextTest(resultNode);
@@ -333,51 +340,47 @@ define(function(require, exports, module) {
                     }
                     
                     // Output
-                    else {
-                        var stackTrace;
-                        
-                        c = c.replace(/([\n\r]|^)# (?:tests|pass|fail).*[\n\r]/g, "").replace(/[ \t]+$/, "");
-                        
-                        // Detect stack trace or timeout
-                        if (c.match(/^\s*Error: timeout/) || c.match(/^\s+at .*:\d+:\d+\)?$/m)) {
-                            if (!lastResultNode) {
-                                lastResultNode = fileNode; // getTestNode(fileNode, 1);
-                                fileNode.ownPassed = 2;
-                                fileNode.output = c;
-                                return;
-                            }
-                            
-                            if (c.match(/^\s*Error: timeout/)) {
-                                lastResultNode.output = c;
-                            }
-                            else {
-                                stackTrace = parseTrace(c);
-                                if (stackTrace) {
-                                    if (!withCodeCoverage) {
-                                        if (!lastResultNode.annotations) 
-                                            lastResultNode.annotations = [];
-                                        
-                                        var path = join(c9.workspaceDir, fileNode.path);
-                                        var pos = stackTrace.findPath(path);
-                                        if (!pos) 
-                                            output += c;
-                                        else {
-                                            lastResultNode.annotations.push({
-                                                line: pos.lineNumber,
-                                                column: pos.column,
-                                                message: c.trim().replace(/^\s+at/mg, "  at") // stackTrace.message
-                                            });
-                                        }
-                                    }
-                                    else 
-                                        lastResultNode.output += c;
-                                }
-                            }
+                    var stackTrace;
+                    
+                    // Detect stack trace or timeout
+                    if (c.match(/^\s*Error: timeout/) || c.match(/^\s+at .*:\d+:\d+\)?$/m)) {
+                        if (!lastResultNode) {
+                            lastResultNode = fileNode; // getTestNode(fileNode, 1);
+                            fileNode.ownPassed = 2;
+                            fileNode.output = c;
                             return;
                         }
                         
-                        output += c;
+                        if (c.match(/^\s*Error: timeout/)) {
+                            lastResultNode.output += c;
+                        }
+                        else {
+                            stackTrace = parseTrace(c);
+                            if (stackTrace) {
+                                if (!withCodeCoverage) {
+                                    if (!lastResultNode.annotations) 
+                                        lastResultNode.annotations = [];
+                                    
+                                    var path = join(c9.workspaceDir, fileNode.path);
+                                    var pos = stackTrace.findPath(path);
+                                    if (!pos) 
+                                        output += c;
+                                    else {
+                                        lastResultNode.annotations.push({
+                                            line: pos.lineNumber,
+                                            column: pos.column,
+                                            message: c.trim().replace(/^\s+at/mg, "  at") // stackTrace.message
+                                        });
+                                    }
+                                }
+                                else 
+                                    lastResultNode.output += c;
+                            }
+                        }
+                        return;
                     }
+                    
+                    output += c;
                 },
                 end: function(c){
                     delete currentPty[ptyId];
