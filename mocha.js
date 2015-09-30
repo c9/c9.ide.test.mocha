@@ -55,7 +55,9 @@ define(function(require, exports, module) {
         // var emit = plugin.getEmitter();
         
         var currentPty = [];
+        var isWin = c9.platform == "win32";
         var debugging;
+        var uniqueId = 0;
         
         function load() {
             if (test.inactive)
@@ -137,7 +139,6 @@ define(function(require, exports, module) {
             return name.join(" ");
         }
         
-        var uniqueId = 0;
         function run(node, progress, options, callback){
             if (typeof options == "function")
                 callback = options, options = null;
@@ -198,7 +199,6 @@ define(function(require, exports, module) {
             args.push(path);
             
             var coveragePath = "~/.c9/coverage/run" + (++uniqueId);
-            var isWin = c9.platform == "win32";
             if (withCodeCoverage) {
                 exec = "istanbul";
                 args.unshift("cover", "--print", "none", "--report", 
@@ -217,26 +217,67 @@ define(function(require, exports, module) {
             }, function(err, pty){
                 if (err) return callback(err);
                 
-                var ptyId = currentPty.push(pty);
-                
-                var lastResultNode, testCount, bailed;
-                var output = "", totalTests = 0;
+                var buffer = createBuffer(pty, fileNode, node, progress, 
+                    allTests, allTestIndex, withCodeCoverage, 
+                    coveragePath, callback);
+                    
                 pty.on("data", function(c){
+                    buffer.read(c);
+                });
+                pty.on("exit", function(c){
+                    buffer.end(c);
+                });
+            });
+            
+            return stop;
+        }
+        
+        function createBuffer(pty, fileNode, node, progress, allTests, 
+          allTestIndex, withCodeCoverage, coveragePath, callback){
+            var ptyId = currentPty.push(pty);
+            
+            var lastResultNode, testCount, bailed;
+            var output = "", totalTests = 0;
+            
+            return {
+                buffer: "",
+                read: function(c){
                     // Log to the raw viewer
                     progress.log(fileNode, c);
                     
-                    // Number of tests
-                    if (c.match(/^(\d+)\.\.(\d+)$/m)) {
-                        testCount = parseInt(RegExp.$2, 10);
+                    var lines = c.split(/[\r\n]+/);
+                    for (var line, i = 0, l = lines.length; i < l; i++) {
+                        line = lines[i];
+                        
+                        // The last line is always incomplete
+                        if (i == l - 1) {
+                            this.buffer += line;
+                        }
+                        
+                        // Number of tests
+                        else if (line.match(/^(\d+)\.\.(\d+)$/m)) {
+                            testCount = parseInt(RegExp.$2, 10);
+                        }
+                        
+                        // Bail
+                        else if (line.match(/^Bail out!(.*)$/m)) {
+                            bailed = 3; // RegExp.$1;
+                        }
+                        
+                        // Update parsed nodes (set, test)
+                        else if (line.match(/^(ok|not ok)\s+(\d+)\s+(.*)$/m)) {
+                            this.readTest(this.buffer);
+                            this.buffer = line;
+                        }
+                        
+                        else {
+                            this.buffer += (this.buffer ? "\n" : "") + line;
+                        }
                     }
-                    
-                    // Bail
-                    else if (c.match(/^Bail out!(.*)$/m)) {
-                        bailed = 3; // RegExp.$1;
-                    }
-                    
+                },
+                readTest: function(c){
                     // Update parsed nodes (set, test)
-                    else if (c.match(/^(ok|not ok)\s+(\d+)\s+(.*)$/m)) {
+                    if (c.match(/^(ok|not ok)\s+(\d+)\s+(.*)$/m)) {
                         var pass = RegExp.$1 == "ok" ? 1 : 0;
                         var id = RegExp.$2;
                         var name = RegExp.$3;
@@ -324,7 +365,7 @@ define(function(require, exports, module) {
                                             lastResultNode.annotations.push({
                                                 line: pos.lineNumber,
                                                 column: pos.column,
-                                                message: c.trim().replace(/^\s+at/mg, "  at") //stackTrace.message
+                                                message: c.trim().replace(/^\s+at/mg, "  at") // stackTrace.message
                                             });
                                         }
                                     }
@@ -337,10 +378,13 @@ define(function(require, exports, module) {
                         
                         output += c;
                     }
-                });
-                pty.on("exit", function(c){
+                },
+                end: function(c){
                     delete currentPty[ptyId];
                     
+                    if (this.buffer)
+                        this.readTest(this.buffer);
+                        
                     if (output) {
                         if (lastResultNode) 
                             lastResultNode.output += output;
@@ -402,10 +446,8 @@ define(function(require, exports, module) {
                         
                         callback(err, node);
                     }
-                });
-            });
-            
-            return stop;
+                }
+            }
         }
         
         /**
