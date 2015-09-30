@@ -115,6 +115,17 @@ define(function(require, exports, module) {
             return found;
         }
         
+        function findTestName(name, node){
+            var nodes = node.findAllNodes("testset");
+            for (var i = 0; i < nodes.length; i++) {
+                var lbl = nodes[i].label.trim();
+                var idx = name.indexOf(lbl);
+                if (~idx)
+                    return findTestName(name.substr(idx + lbl.length).trim(), nodes[i]);
+            }
+            return [name, node];
+        }
+        
         function getFullTestName(node){
             var name = [];
             
@@ -242,10 +253,13 @@ define(function(require, exports, module) {
                         
                         // I suspect this is no longer needed
                         if (!resultNode) {
+                            var context = findTestName(name, node);
                             resultNode = fileNode.addTest({
-                                label: name, // TODO
-                                type: "test"
-                            });
+                                label: context[0],
+                                type: "test",
+                                kind: "it",
+                                pos: { sl: 0, el: 0, sc: 0, ec: 0 }
+                            }, context[1]);
                         }
                         
                         // if (!resultNode) 
