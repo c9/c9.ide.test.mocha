@@ -30,7 +30,7 @@ define(function(require, exports, module) {
                 label: "Mocha Test Runner",
                 def: {
                     match: {
-                        content: ["^\\s*describe\\("],
+                        content: ["^\\s*describe\\s*\\(", "^\\s*suite\\s*\\("],
                         filename: [".js$"]
                     },
                     exclude: {
