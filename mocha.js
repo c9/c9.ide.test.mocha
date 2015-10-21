@@ -205,9 +205,14 @@ define(function(require, exports, module) {
                     "lcovonly", "--dir", coveragePath, 
                     isWin ? "node_modules/mocha/bin/_mocha" : "_mocha", "--");
             }
+            
             if (isWin) {
                 args.unshift("-c", '"$0" "$@"', exec);
                 exec = "bash.exe";
+            }
+            else {
+                args.unshift("-l", "-c", '"$0" "$@"', exec); // force a login shell
+                exec = "bash";
             }
             
             proc.pty(exec, {
@@ -450,7 +455,7 @@ define(function(require, exports, module) {
                         callback(err, node);
                     }
                 }
-            }
+            };
         }
         
         /**
