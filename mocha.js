@@ -538,10 +538,10 @@ define(function(require, exports, module) {
         function fileChange(options){
             // Update file
             var fileNode = findFileByPath(options.path);
-            if (!fileNode) {
+            if (!fileNode)
                 fileNode = plugin.createFile(options.path.substr(1));
+            if (!fileNode.runner)
                 fileNode.runner = plugin;
-            }
             
             if (fileNode.items.length || options.runonsave)
                 updateOutline(fileNode, options.value, function(){
