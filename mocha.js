@@ -294,9 +294,13 @@ define(function(require, exports, module) {
                         var name = m[3];
                         
                         if (name.match(/"(before all|before each|after all|after each)" hook/, "$1")) {
-                            name = name.replace(/"(before all|before each|after all|after each)" hook/, "$1");
+                            name = name.replace(/"(before all|before each|after all|after each)" hook .*/, "$1");
+                            id = undefined;
                             if (!pass) bailed = 2, pass = 2;
                         }
+                        
+                        // TODO when having multiple before/after* find out the 
+                        // right one based on the line number in the stacktrace
                         
                         // Update Node
                         var resultNode = (node.type == "test"
@@ -339,10 +343,10 @@ define(function(require, exports, module) {
                         
                         c = c.replace(/^.*([\r\n]+|$)/, "");
                         
-                        if (bailed) return;
-                        
-                        var nextTest = allTests[++allTestIndex]; // findNextTest(resultNode);
-                        if (nextTest) progress.start(nextTest);
+                        if (!bailed) {
+                            var nextTest = allTests[++allTestIndex]; // findNextTest(resultNode);
+                            if (nextTest) progress.start(nextTest);
+                        }
                     }
                     
                     // Output
@@ -385,6 +389,8 @@ define(function(require, exports, module) {
                         }
                         return;
                     }
+                    
+                    if (bailed) return;
                     
                     output += c;
                 },
