@@ -94,7 +94,7 @@ define(function(require, exports, module) {
             });
         }
         
-        function getTestNode(node, id, name){
+        function getTestNode(node, id, name) {
             var count = 0;
             var found = (function recur(items, pname){
                 for (var j, i = 0; i < items.length; i++) {
@@ -117,7 +117,7 @@ define(function(require, exports, module) {
             return found;
         }
         
-        function findTestName(name, node){
+        function findTestName(name, node) {
             var nodes = node.findAllNodes("testset");
             for (var i = 0; i < nodes.length; i++) {
                 var lbl = nodes[i].label.trim();
@@ -139,7 +139,7 @@ define(function(require, exports, module) {
             return name.join(" ");
         }
         
-        function run(node, progress, options, callback){
+        function run(node, progress, options, callback) {
             if (typeof options == "function")
                 callback = options, options = null;
             
@@ -238,7 +238,7 @@ define(function(require, exports, module) {
         }
         
         function createBuffer(pty, fileNode, node, progress, allTests, 
-          allTestIndex, withCodeCoverage, coveragePath, callback){
+          allTestIndex, withCodeCoverage, coveragePath, callback) {
             var ptyId = currentPty.push(pty);
             
             var lastResultNode, testCount, bailed;
@@ -287,10 +287,11 @@ define(function(require, exports, module) {
                 },
                 readTest: function(c){
                     // Update parsed nodes (set, test)
-                    if (c.match(/^(ok|not ok)\s+(\d+)\s+(.*)$/m)) {
-                        var pass = RegExp.$1 == "ok" ? 1 : 0;
-                        var id = RegExp.$2;
-                        var name = RegExp.$3;
+                    var m = c.match(/^(ok|not ok)\s+(\d+)\s+(.*)$/m);
+                    if (m) {
+                        var pass = m[1] == "ok" ? 1 : 0;
+                        var id = m[2];
+                        var name = m[3];
                         
                         if (name.match(/"(before all|before each|after all|after each)" hook/, "$1")) {
                             name = name.replace(/"(before all|before each|after all|after each)" hook/, "$1");
@@ -407,12 +408,12 @@ define(function(require, exports, module) {
                         var stackTrace = parseTrace(fileNode.output);
                         var filepath = isWin ? fileNode.path.replace(/\//g, "\\") : fileNode.path;
                         var rePath = new RegExp(util.escapeRegExp(filepath) + ":(\\d+)");
-                        fileNode.output.match(rePath);
-                        if (RegExp.$1) {
+                        var m = fileNode.output.match(rePath);
+                        if (m[1]) {
                             if (!fileNode.annotations) 
                                 fileNode.annotations = [];
                             
-                            var lineNumber = parseInt(RegExp.$1);
+                            var lineNumber = parseInt(m[1]);
                             fileNode.annotations.push({
                                 line: lineNumber,
                                 column: 0,
