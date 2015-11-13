@@ -101,7 +101,7 @@ define(function(require, exports, module) {
                     j = items[i];
                     
                     if (j.type == "test") count++;
-                    if (pname + j.label == name || count == id)
+                    if (id !== undefined ? count == id : pname + j.label == name)
                         return j;
                     
                     if (j.items) {
