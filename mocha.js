@@ -246,17 +246,20 @@ define(function(require, exports, module) {
             
             return {
                 buffer: "",
+                incomplete: "",
                 read: function(c){
                     // Log to the raw viewer
                     progress.log(fileNode, c);
                     
-                    var lines = c.split(/[\r\n]+/);
+                    var lines = (this.incomplete + c).split(/[\r\n]+/);
+                    this.incomplete = "";
+                    
                     for (var line, i = 0, l = lines.length; i < l; i++) {
                         line = lines[i];
                         
                         // The last line is always incomplete
                         if (i == l - 1) {
-                            this.buffer += line;
+                            this.incomplete += line;
                         }
                         
                         // Number of tests
@@ -389,8 +392,6 @@ define(function(require, exports, module) {
                         }
                         return;
                     }
-                    
-                    if (bailed) return;
                     
                     output += c;
                 },
