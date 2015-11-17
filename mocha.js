@@ -553,6 +553,7 @@ define(function(require, exports, module) {
             
             if (fileNode.items.length || options.runonsave)
                 updateOutline(fileNode, options.value, function(){
+                    options.refresh();
                     options.run(fileNode); // Run file
                 });
         }
