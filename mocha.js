@@ -174,14 +174,14 @@ define(function(require, exports, module) {
                 // "${debug?`node --version | grep -vqE \"v0\\..\\.\" && echo --nodead_code_elimination`}",
                 // "${debug?--debug-brk=15454}",
                 
-                args.push("--debug", "--debug-brk=15455"); // TODO extra node options
+                args.push("--debug", "--debug-brk"); // TODO extra node options
                 
                 debugging = true;
                 debug.debug({
                     STARTED: 2,
                     runner: {
                         "debugger": "v8",
-                        "debugport": 15455,
+                        "debugport": 5858,
                         "disabled": {
                             liveUpdate: true
                         }
