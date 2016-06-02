@@ -3,7 +3,6 @@ define(function(require, exports, module) {
 var parser = require("treehugger/js/parse");
 var traverse = require("treehugger/traverse");
 var baseLanguageHandler = require("plugins/c9.ide.language/base_handler");
-// var parser = require("plugins/c9.ide.language/parse");
 
 var handler = module.exports = Object.create(baseLanguageHandler);
 
