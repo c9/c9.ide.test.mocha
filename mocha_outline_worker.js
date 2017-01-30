@@ -127,7 +127,7 @@ function parseBDD(ast, items) {
     return items;
 }
 
-function parseTDD(ast, items){
+function parseTDD(ast, items) {
     ast.traverseTopDown( 
         'Call(Var("setup"), _)', function(b, node) {
             items.push({

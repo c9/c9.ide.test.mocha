@@ -40,7 +40,7 @@ define(function(require, exports, module) {
                     search: "*"
                 }
             },
-            getName: function(name){
+            getName: function(name) {
                 return name.substr(1);
             },
             options: [
@@ -68,7 +68,7 @@ define(function(require, exports, module) {
         /***** Methods *****/
         
         function populate(node, callback) {
-            fs.readFile(node.path, function(err, contents){
+            fs.readFile(node.path, function(err, contents) {
                 if (err) return callback(err);
                 
                 updateOutline(node, contents, callback);
@@ -81,7 +81,7 @@ define(function(require, exports, module) {
                 if (err) return callback && callback(err) || console.error(err);
                 
                 var currentId = ++wid;
-                worker.emit("mocha_outline", { data: { id: currentId, code: contents } });
+                worker.emit("mocha_outline", { data: { id: currentId, code: contents }});
                 worker.on("mocha_outline_result", function onResponse(e) {
                     if (e.data.id !== currentId) return;
                     
@@ -96,7 +96,7 @@ define(function(require, exports, module) {
         
         function getTestNode(node, id, name) {
             var count = 0;
-            var found = (function recur(items, pname){
+            var found = (function recur(items, pname) {
                 for (var j, i = 0; i < items.length; i++) {
                     j = items[i];
                     
@@ -128,7 +128,7 @@ define(function(require, exports, module) {
             return [name, node];
         }
         
-        function getFullTestName(node){
+        function getFullTestName(node) {
             var name = [];
             
             do {
@@ -219,17 +219,17 @@ define(function(require, exports, module) {
                 args: args,
                 cwd: dirname(path),
                 fakePty: isWin
-            }, function(err, pty){
+            }, function(err, pty) {
                 if (err) return callback(err);
                 
                 var buffer = createBuffer(pty, fileNode, node, progress, 
                     allTests, allTestIndex, withCodeCoverage, 
                     coveragePath, callback);
                     
-                pty.on("data", function(c){
+                pty.on("data", function(c) {
                     buffer.read(c);
                 });
-                pty.on("exit", function(c){
+                pty.on("exit", function(c) {
                     buffer.end(c);
                 });
             });
@@ -247,7 +247,7 @@ define(function(require, exports, module) {
             return {
                 buffer: "",
                 incomplete: "",
-                read: function(c){
+                read: function(c) {
                     // Log to the raw viewer
                     progress.log(fileNode, c);
                     
@@ -288,7 +288,7 @@ define(function(require, exports, module) {
                         }
                     }
                 },
-                readTest: function(c){
+                readTest: function(c) {
                     // Update parsed nodes (set, test)
                     var m = c.match(/^(ok|not ok)\s+(\d+)\s+(.*)$/m);
                     if (m) {
@@ -395,7 +395,7 @@ define(function(require, exports, module) {
                     
                     output += c;
                 },
-                end: function(c){
+                end: function(c) {
                     delete currentPty[ptyId];
                     
                     if (this.buffer)
@@ -440,7 +440,7 @@ define(function(require, exports, module) {
                         fileNode.ownPassed = pty.isKilled ? 3 : bailed;
                     
                     if (withCodeCoverage && !bailed) {
-                        fs.readFile(coveragePath + "/lcov.info", function(err, lcovString){
+                        fs.readFile(coveragePath + "/lcov.info", function(err, lcovString) {
                             if (err) return done(err);
                             
                             node.coverage = Coverage.fromLCOV(lcovString, coveragePath);
@@ -453,9 +453,9 @@ define(function(require, exports, module) {
                         done();
                     }
                     
-                    function done(err){
+                    function done(err) {
                         // Cleanup for before/after failure
-                        allTests.forEach(function(n){ 
+                        allTests.forEach(function(n) { 
                             if (n.status != "loaded")
                                 progress.end(n);
                         });
@@ -472,8 +472,8 @@ define(function(require, exports, module) {
          * From: https://github.com/errwischt/stacktrace-parser/blob/master/lib/stacktrace-parser.js
          */
         var UNKNOWN_FUNCTION = '<unknown>';
-        function parseTrace(stackString){
-            var node  = /^\s*at (?:((?:\[object object\])?\S+(?: \[as \S+\])?) )?\(?(.*?):(\d+)(?::(\d+))?\)?\s*$/i;
+        function parseTrace(stackString) {
+            var node = /^\s*at (?:((?:\[object object\])?\S+(?: \[as \S+\])?) )?\(?(.*?):(\d+)(?::(\d+))?\)?\s*$/i;
             var lines = stackString.split('\n');
             var stack = [];
             var message = [];
@@ -499,7 +499,7 @@ define(function(require, exports, module) {
             if ((stack.message + stack[0].file).indexOf("mocha/lib/runner.js") > -1)
                 return false;
             
-            stack.findPath = function(path, isFilename){
+            stack.findPath = function(path, isFilename) {
                 for (var i = 0; i < stack.length; i++) {
                     if (stack[i].file == path)
                         return stack[i];
@@ -510,8 +510,8 @@ define(function(require, exports, module) {
             return stack;
         }
         
-        function stop(){
-            currentPty.forEach(function(pty){
+        function stop() {
+            currentPty.forEach(function(pty) {
                 pty.isKilled = true;
                 pty.kill();
             });
@@ -522,8 +522,8 @@ define(function(require, exports, module) {
         }
         
         var reStack = /([\\\/\w-_\.]+):(\d+)(?::(\d+))?/g;
-        function parseLinks(strOutput){
-            return strOutput.replace(reStack, function(m, name, l, c){ 
+        function parseLinks(strOutput) {
+            return strOutput.replace(reStack, function(m, name, l, c) { 
                 name = name.replace(c9.workspaceDir, "");
                 if (name.charAt(0) != "/") name = "/" + name;
                 
@@ -534,7 +534,7 @@ define(function(require, exports, module) {
         
         function findFileByPath(path) {
             var found = false;
-            plugin.root.findAllNodes("file").some(function(n){
+            plugin.root.findAllNodes("file").some(function(n) {
                 if (n.path == path) {
                     found = n;
                     return true;
@@ -543,7 +543,7 @@ define(function(require, exports, module) {
             return found;
         }
         
-        function fileChange(options){
+        function fileChange(options) {
             // Update file
             var fileNode = findFileByPath(options.path);
             if (!fileNode)
@@ -552,7 +552,7 @@ define(function(require, exports, module) {
                 fileNode.runner = plugin;
             
             if (fileNode.items.length || options.runonsave)
-                updateOutline(fileNode, options.value, function(){
+                updateOutline(fileNode, options.value, function() {
                     options.refresh();
                     options.run(fileNode); // Run file
                 });
